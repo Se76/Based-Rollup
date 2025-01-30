@@ -142,7 +142,7 @@ pub fn run(
 
         
         let result_msg = MessageProcessor::process_message(
-            &sanitized.unwrap().message(),
+            &sanitized.unwrap().message(), // ERROR WITH SOLANA_SVM VERSION 
             &vec![],
             &mut invoke_context,
             &mut timings,
@@ -170,11 +170,32 @@ pub fn run(
 
             // let _settle_tx_hash = settle_state("proof".into()).await?;
             tx_counter = 0u32;
+
+
+            // CREATE A PROOF FOR THE CHANGES STATE
         }
     }
 
     Ok(())
 }
+
+
+// TWO WAYS -> TRANSACTIONBATCHPROCCESOR OR MESSAGEPROCESSOR
+
+// PAYTUBE in SVM FOLDER
+
+// The question of how often to pull/push the state out of mainnet state
+
+// PDA as a *treasury , to solve problem with sol that could disapear from account 
+
+// to create kind of a program that will lock funds on mainnet 
+
+// MagicBlock relyaing on their infrustructure 
+
+// To make a buffer between sending two transactions
+
+
+
 
 // / In order to use the `TransactionBatchProcessor`, another trait - Solana
 // / Program Runtime's `ForkGraph` - must be implemented, to tell the batch

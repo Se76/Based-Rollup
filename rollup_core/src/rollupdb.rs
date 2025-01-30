@@ -56,6 +56,10 @@ impl RollupDB {
                     .await
                     .unwrap();
             } else if let Some(tx) = message.add_processed_transaction {
+                // LOGIC IS MISSING 
+
+                // communication channel with database 
+                // communcation with the frontend 
             }
         }
     }
