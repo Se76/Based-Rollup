@@ -1,7 +1,7 @@
 use async_channel::{Receiver, Sender};
 use serde::{Deserialize, Serialize};
 use solana_sdk::{
-    account::AccountSharedData, keccak::Hash, pubkey::Pubkey, transaction::Transaction,
+    account::AccountSharedData, hash::Hash, pubkey::Pubkey, transaction::Transaction, // keccak::Hash -> hash::Hash
 };
 
 use crossbeam::channel::{Receiver as CBReceiver, Sender as CBSender};
@@ -56,7 +56,25 @@ impl RollupDB {
                     .await
                     .unwrap();
             } else if let Some(tx) = message.add_processed_transaction {
-                // LOGIC IS MISSING 
+
+                // unlocking accounts
+                let locked_keys = tx.message.account_keys.clone(); // get the keys
+
+                // locked_keys.iter().for_each(
+                //     |pubkey| if db.locked_accounts.contains_key(&pubkey) {
+                //         db.locked_accounts.remove(&pubkey);
+                //     }
+                // );
+
+                for pubkey in locked_keys {
+                    if let Some(account) = db.locked_accounts.remove(&pubkey) {
+                        db.accounts_db.insert(pubkey, account); // Unlock and restore
+                    }
+                }
+                // send transaction to the db.transactions
+
+                db.transactions.insert(tx.message.hash(), tx.clone());
+
 
                 // communication channel with database 
                 // communcation with the frontend 
