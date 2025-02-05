@@ -15,11 +15,12 @@ use solana_program_runtime::{
 
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_sdk::{
-    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, transaction::{SanitizedTransaction, Transaction}, transaction_context::TransactionContext
+    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext}
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
     message_processor::MessageProcessor,
+    program_loader::load_program_with_pubkey,
     transaction_processing_callback::TransactionProcessingCallback,
     transaction_processor::{TransactionBatchProcessor, TransactionProcessingEnvironment},
 };
@@ -53,6 +54,8 @@ pub fn run(
         let feature_set = FeatureSet::all_enabled();
         let fee_structure = FeeStructure::default();
         let lamports_per_signature = fee_structure.lamports_per_signature;
+
+        
         // let rent_collector = RentCollector::default();
 
         // Solana runtime.
@@ -71,7 +74,7 @@ pub fn run(
 
         let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
 
-        let accounts_data = transaction
+        let accounts_data = transaction // adding reference
             .message
             .account_keys
             .iter()
@@ -83,8 +86,26 @@ pub fn run(
             })
             .collect::<Vec<(Pubkey, AccountSharedData)>>();
 
+
+
+        let instructions = &transaction.message.instructions; 
+        // let index_array_of_program_pubkeys = Vec::with_capacity(instructions.len());
+        let program_ids = &transaction.message.account_keys; 
+
+        let needed_programs: Vec<&Pubkey> = instructions
+                .iter()
+                .map(
+                    |instruction|
+                    instruction.program_id(program_ids)).collect();
+
+
+
+
+
         let mut transaction_context = TransactionContext::new(accounts_data, Rent::default(), 0, 0);
 
+
+            // here we have to load them somehow
 
         let runtime_env = Arc::new(
             create_program_runtime_environment_v1(&feature_set, &compute_budget, false, false)
@@ -130,6 +151,8 @@ pub fn run(
            compute_budget.to_owned()
         );
 
+
+
         let mut used_cu = 0u64;
         let sanitized = SanitizedTransaction::try_from_legacy_transaction(
             Transaction::from(transaction.clone()),
@@ -141,16 +164,21 @@ pub fn run(
 
         let mut timings = ExecuteTimings::default();
 
-        
+        let program_indices: Vec<IndexOfAccount> = vec![0];
         let result_msg = MessageProcessor::process_message(
-            &sanitized.unwrap().message(), // ERROR WITH SOLANA_SVM VERSION 
+            &sanitized.unwrap().message().to_owned(), // ERROR WITH SOLANA_SVM VERSION 
             // ?should be fixed with help of chagning versions of solana-svm ?
             // &sanitized.unwrap().message().to_owned(),
-            &vec![],
+            &[program_indices],  // TODO: automotize this process
             &mut invoke_context,
             &mut timings,
             &mut used_cu,
         );
+
+        log::info!("{:?}", &result_msg);
+        log::info!("The message was done sucessfully");
+
+
 
         // Send processed transaction to db for storage and availability
         rollupdb_sender

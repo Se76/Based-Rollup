@@ -7,7 +7,7 @@ use actix_web::{error, web, HttpResponse};
 use async_channel::{Receiver, Send, Sender};
 use crossbeam::channel::{Sender as CBSender, Receiver as CBReceiver};
 use serde::{Deserialize, Serialize};
-use solana_sdk::keccak::Hash;
+use solana_sdk::hash::Hash; // keccak::Hash
 use solana_sdk::transaction::Transaction;
 
 use crate::rollupdb::RollupDBMessage;

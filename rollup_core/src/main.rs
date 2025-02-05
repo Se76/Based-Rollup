@@ -11,6 +11,7 @@ mod frontend;
 mod rollupdb;
 mod sequencer;
 mod settle;
+mod processor;
 
 // #[actix_web::main]
 fn main() {
