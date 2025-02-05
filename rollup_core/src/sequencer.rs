@@ -88,6 +88,7 @@ pub fn run(
 
 
 
+            //****************************************************************************************************/
         let instructions = &transaction.message.instructions; 
         // let index_array_of_program_pubkeys = Vec::with_capacity(instructions.len());
         let program_ids = &transaction.message.account_keys; 
@@ -97,10 +98,7 @@ pub fn run(
                 .map(
                     |instruction|
                     instruction.program_id(program_ids)).collect();
-
-
-
-
+            //****************************************************************************************************/
 
         let mut transaction_context = TransactionContext::new(accounts_data, Rent::default(), 0, 0);
 
@@ -150,6 +148,16 @@ pub fn run(
            None,
            compute_budget.to_owned()
         );
+
+
+        // HAS TO BE AN ADDRESS OF THE PROGRAM 
+        let key = Pubkey::new_unique();
+
+        let program_cache_entry = load_program_with_pubkey(
+            // TODO: add arguments
+        );
+
+        invoke_context.program_cache_for_tx_batch.replenish(key, program_cache_entry.unwrap());
 
 
 
