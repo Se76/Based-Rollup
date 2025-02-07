@@ -86,7 +86,17 @@ pub fn run(
             })
             .collect::<Vec<(Pubkey, AccountSharedData)>>();
 
+            
+        
+        // let needed_programs = &accounts_data.iter().map(|(pubkey, account)| {
+        //     match account.executable() {
+        //         true => (pubkey, account),
+        //         false => (),
+        //     }
+        // }).collect::<HashMap<Pubkey, AccountSharedData>>();
 
+        // log::info!("accounts_data: {needed_programs:?}");
+ 
 
             //****************************************************************************************************/
         let instructions = &transaction.message.instructions; 
@@ -100,7 +110,7 @@ pub fn run(
                     instruction.program_id(program_ids)).collect();
             //****************************************************************************************************/
 
-        let mut transaction_context = TransactionContext::new(accounts_data, Rent::default(), 0, 0);
+        let mut transaction_context = TransactionContext::new(accounts_data, Rent::default(), 1, 100);
 
 
             // here we have to load them somehow
@@ -119,6 +129,8 @@ pub fn run(
             None, 
             Epoch::default(),
         );
+
+        // prog_cache.replenish(accounts_data., entry)
 
         let sysvar_c = sysvar_cache::SysvarCache::default();
         let env = EnvironmentConfig::new(
@@ -153,16 +165,16 @@ pub fn run(
         // HAS TO BE AN ADDRESS OF THE PROGRAM 
         let key = Pubkey::new_unique();
 
-        let program_cache_entry = load_program_with_pubkey(
+        // let program_cache_entry = load_program_with_pubkey(
             // TODO: add arguments
-        );
+        // );
 
-        invoke_context.program_cache_for_tx_batch.replenish(key, program_cache_entry.unwrap());
+        // invoke_context.program_cache_for_tx_batch.replenish(key, program_cache_entry.unwrap());
 
 
 
         let mut used_cu = 0u64;
-        let sanitized = SanitizedTransaction::try_from_legacy_transaction(
+        let sanitized = SanitizedTransaction::try_from_legacy_transaction( // to check here for the problem
             Transaction::from(transaction.clone()),
             &HashSet::new(),
         )
