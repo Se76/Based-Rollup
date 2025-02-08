@@ -1,3 +1,4 @@
+use core::panic;
 use std::{
     collections::{HashMap, HashSet},
     sync::{Arc, RwLock},
@@ -15,17 +16,19 @@ use solana_program_runtime::{
 
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_sdk::{
-    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext}
+    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, instruction, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, sysvar::instructions, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext},
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
     message_processor::MessageProcessor,
     program_loader::load_program_with_pubkey,
     transaction_processing_callback::TransactionProcessingCallback,
-    transaction_processor::{TransactionBatchProcessor, TransactionProcessingEnvironment},
+    transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment},
 };
 
 use crate::{rollupdb::RollupDBMessage, settle::settle_state};
+use crate::loader::RollupAccountLoader;
+use crate::processor::*;
 
 pub fn run(
     sequencer_receiver_channel: CBReceiver<Transaction>,
@@ -54,6 +57,10 @@ pub fn run(
         let feature_set = FeatureSet::all_enabled();
         let fee_structure = FeeStructure::default();
         let lamports_per_signature = fee_structure.lamports_per_signature;
+        let rent_collector = RentCollector::default();
+        let mut timings = ExecuteTimings::default();
+        let fork_graph = Arc::new(RwLock::new(RollupForkGraph {}));
+
 
         
         // let rent_collector = RentCollector::default();
@@ -86,121 +93,69 @@ pub fn run(
             })
             .collect::<Vec<(Pubkey, AccountSharedData)>>();
 
-            
-        
-        // let needed_programs = &accounts_data.iter().map(|(pubkey, account)| {
-        //     match account.executable() {
-        //         true => (pubkey, account),
-        //         false => (),
-        //     }
-        // }).collect::<HashMap<Pubkey, AccountSharedData>>();
-
-        // log::info!("accounts_data: {needed_programs:?}");
- 
-
-            //****************************************************************************************************/
-        let instructions = &transaction.message.instructions; 
-        // let index_array_of_program_pubkeys = Vec::with_capacity(instructions.len());
-        let program_ids = &transaction.message.account_keys; 
-
-        let needed_programs: Vec<&Pubkey> = instructions
-                .iter()
-                .map(
-                    |instruction|
-                    instruction.program_id(program_ids)).collect();
-            //****************************************************************************************************/
-
-        let mut transaction_context = TransactionContext::new(accounts_data, Rent::default(), 1, 100);
-
-
-            // here we have to load them somehow
-
-        let runtime_env = Arc::new(
-            create_program_runtime_environment_v1(&feature_set, &compute_budget, false, false)
-                .unwrap(),
-        );
-
-        let mut prog_cache = ProgramCacheForTxBatch::new(
-            Slot::default(), 
-            ProgramRuntimeEnvironments {
-                program_runtime_v1: runtime_env.clone(),
-                program_runtime_v2: runtime_env,
-            },
-            None, 
-            Epoch::default(),
-        );
-
-        // prog_cache.replenish(accounts_data., entry)
-
-        let sysvar_c = sysvar_cache::SysvarCache::default();
-        let env = EnvironmentConfig::new(
-            Hash::default(),
-            None,
-            None,
-            Arc::new(feature_set),
-            lamports_per_signature,
-            &sysvar_c,
-        );
-        // let default_env = EnvironmentConfig::new(blockhash, epoch_total_stake, epoch_vote_accounts, feature_set, lamports_per_signature, sysvar_cache)
-
-        // let processing_environment = TransactionProcessingEnvironment {
-        //     blockhash: Hash::default(),
-        //     epoch_total_stake: None,
-        //     epoch_vote_accounts: None,
-        //     feature_set: Arc::new(feature_set),
-        //     fee_structure: Some(&fee_structure),
-        //     lamports_per_signature,
-        //     rent_collector: Some(&rent_collector),
-        // };
-        
-        let mut invoke_context = InvokeContext::new(
-           &mut transaction_context,
-           &mut prog_cache,
-           env,
-           None,
-           compute_budget.to_owned()
-        );
-
-
-        // HAS TO BE AN ADDRESS OF THE PROGRAM 
-        let key = Pubkey::new_unique();
-
-        // let program_cache_entry = load_program_with_pubkey(
-            // TODO: add arguments
-        // );
-
-        // invoke_context.program_cache_for_tx_batch.replenish(key, program_cache_entry.unwrap());
-
-
-
         let mut used_cu = 0u64;
         let sanitized = SanitizedTransaction::try_from_legacy_transaction( // to check here for the problem
             Transaction::from(transaction.clone()),
             &HashSet::new(),
-        )
-        ;
-        log::info!("{:?}", sanitized.clone());
-
-
-        let mut timings = ExecuteTimings::default();
-
-        let program_indices: Vec<IndexOfAccount> = vec![0];
-        let result_msg = MessageProcessor::process_message(
-            &sanitized.unwrap().message().to_owned(), // ERROR WITH SOLANA_SVM VERSION 
-            // ?should be fixed with help of chagning versions of solana-svm ?
-            // &sanitized.unwrap().message().to_owned(),
-            &[program_indices],  // TODO: automotize this process
-            &mut invoke_context,
-            &mut timings,
-            &mut used_cu,
         );
 
-        log::info!("{:?}", &result_msg);
-        log::info!("The message was done sucessfully");
+        log::info!("{:?}", sanitized.clone());
+
+        let needed_programs: Vec<(Pubkey, AccountSharedData)> = 
+        accounts_data
+        .iter()
+        .filter(|(pubkey, account)| account.executable())
+        .map(|(pubkey, account)| (pubkey.clone(), account.clone()))
+        .collect();
+
+        log::info!("accounts_data: {needed_programs:?}");
+
+        let mut rollup_account_loader = RollupAccountLoader::new(
+            &rpc_client_temp,
+        );
+
+        for (pubkey, account) in needed_programs.iter() {
+            rollup_account_loader.add_account(*pubkey, account.clone());
+        }
+
+
+        let processor = create_transaction_batch_processor(
+            &rollup_account_loader,
+            &feature_set,
+            &compute_budget,
+            Arc::clone(&fork_graph),
+        );
+
+        let checks = get_transaction_check_results(1, fee_structure.lamports_per_signature);
+        let sanitized_transaction = &[sanitized.unwrap()]; 
+
+        let processing_environment = TransactionProcessingEnvironment {
+            blockhash: Hash::default(),
+            epoch_total_stake: None,
+            epoch_vote_accounts: None,
+            feature_set: Arc::new(feature_set),
+            fee_structure: Some(&fee_structure),
+            lamports_per_signature: fee_structure.lamports_per_signature,
+            rent_collector: Some(&rent_collector),
+        };
+
+        let processing_config = TransactionProcessingConfig {
+            compute_budget: Some(compute_budget),
+            ..Default::default()
+        };
 
 
 
-        // Send processed transaction to db for storage and availability
+        let status = processor.load_and_execute_sanitized_transactions(
+            &rollup_account_loader, 
+            sanitized_transaction, 
+            checks, 
+            &processing_environment, 
+            &processing_config
+        );
+        log::info!("{:#?}", status.processing_results);
+        
+             // Send processed transaction to db for storage and availability
         rollupdb_sender
             .send(RollupDBMessage {
                 lock_accounts: None,
@@ -229,6 +184,170 @@ pub fn run(
 
     Ok(())
 }
+
+
+
+
+ 
+    //         //****************************************************************************************************/
+    //     // let instructions = &transaction.message.instructions; 
+    //     // // let index_array_of_program_pubkeys = Vec::with_capacity(instructions.len());
+    //     // let program_ids = &transaction.message.account_keys; 
+
+    //     // let needed_programs: Vec<&Pubkey> = instructions
+    //     //         .iter()
+    //     //         .map(
+    //     //             |instruction|
+    //     //             instruction.program_id(program_ids)).collect();
+    //         //****************************************************************************************************/
+
+    //     let mut transaction_context = TransactionContext::new(
+    //         accounts_data, 
+    //         Rent::default(), 
+    //         compute_budget.max_instruction_stack_depth,
+    //     compute_budget.max_instruction_trace_length,
+    // );
+    //     // transaction_context.get_current_instruction_context().unwrap().get_index_of_program_account_in_transaction(2).unwrap();
+    //     // transaction_context.push(); 
+
+
+    //         // here we have to load them somehow
+
+    //     let runtime_env = Arc::new(
+    //         create_program_runtime_environment_v1(&feature_set, &compute_budget, false, false)
+    //             .unwrap(),
+    //     );
+
+    //     let mut prog_cache = ProgramCacheForTxBatch::new(
+    //         Slot::default(), 
+    //         ProgramRuntimeEnvironments {
+    //             program_runtime_v1: runtime_env.clone(),
+    //             program_runtime_v2: runtime_env,
+    //         },
+    //         None, 
+    //         Epoch::default(),
+    //     );
+        
+
+    //     // prog_cache.replenish(accounts_data., entry)
+
+    //     let sysvar_c = sysvar_cache::SysvarCache::default();
+    //     let env = EnvironmentConfig::new(
+    //         Hash::default(),
+    //         None,
+    //         None,
+    //         Arc::new(feature_set),
+    //         lamports_per_signature,
+    //         &sysvar_c,
+    //     );
+    //     // let default_env = EnvironmentConfig::new(blockhash, epoch_total_stake, epoch_vote_accounts, feature_set, lamports_per_signature, sysvar_cache)
+
+    //     // let processing_environment = TransactionProcessingEnvironment {
+    //     //     blockhash: Hash::default(),
+    //     //     epoch_total_stake: None,
+    //     //     epoch_vote_accounts: None,
+    //     //     feature_set: Arc::new(feature_set),
+    //     //     fee_structure: Some(&fee_structure),
+    //     //     lamports_per_signature,
+    //     //     rent_collector: Some(&rent_collector),
+    //     // };
+
+        
+
+    //     // for (pubkey, account) in rollup_account_loader.cache.read().unwrap().iter() {
+    //     //     let _p = rollup_account_loader.get_account_shared_data(pubkey);
+    //     //     log::info!("account: {_p:?}");
+    //     // }
+    //     // let cache = &rollup_account_loader.cache.read().unwrap();
+    //     // let pew = cache.keys().next().cloned().unwrap();
+    //     // let owner = cache.get(&pew).unwrap().owner();
+    //     // log::debug!("pubkey: {owner:?}");
+        
+
+    //     let program_cache_entry = load_program_with_pubkey(
+    //         &rollup_account_loader,
+    //         &prog_cache.environments,
+    //         &rollup_account_loader.cache.read().unwrap().keys().next().cloned().unwrap(),//&needed_programs[0].0,
+    //         0,
+    //         &mut ExecuteTimings::default(),
+    //         false
+    //     );
+
+    //     log::info!("program_cache_entry: {program_cache_entry:?}");
+
+    //     prog_cache.replenish(
+    //         needed_programs[0].0,
+    //         program_cache_entry.unwrap(),
+    //     );
+    //     // {
+    //     //     let instruction_ctx = transaction_context.get_current_instruction_context();
+    //     //     log::debug!("instruction_ctx: {instruction_ctx:?}");
+    //     // }
+    //     // let instruction_ctx_height = transaction_context.get_instruction_context_stack_height();
+
+    //     // log::debug!("instruction_ctx_height: {instruction_ctx_height}");
+
+    //     // let instruction_ctx_next = transaction_context.get_next_instruction_context();
+    //     // // let instruction_ctx = transaction_context.get_next_instruction_context();
+        
+    //     // log::debug!("instruction_ctx: {instruction_ctx_next:?}");
+
+
+        
+    //     let mut invoke_context = InvokeContext::new(
+    //        &mut transaction_context,
+    //        &mut prog_cache,
+    //        env,
+    //        None,
+    //        compute_budget.to_owned()
+    //     );
+        
+
+    //     // let instruction_ctx_2 = invoke_context.transaction_context.get_current_instruction_context();
+    //     // log::debug!("instruction_ctx_2: {instruction_ctx_2:?}");
+    //     // let instruction_ctx_height = invoke_context.transaction_context.get_instruction_context_stack_height();
+    //     // log::debug!("instruction_ctx_height: {instruction_ctx_height}");
+    //     // let instruction_ctx_height = invoke_context.transaction_context.get_instruction_context_at_index_in_trace(0);
+    //     // log::debug!("instruction_ctx_height: {instruction_ctx_height:?}");
+        
+
+
+
+    //     // HAS TO BE AN ADDRESS OF THE PROGRAM 
+
+    //     // invoke_context.program_cache_for_tx_batch.replenish(key, program_cache_entry.unwrap());
+
+
+
+        
+
+
+
+    //     // let account_index = invoke_context
+    //     //         .transaction_context
+    //     //         .find_index_of_account(&instructions::id());
+
+    //     // if account_index.is_none() {
+    //     //     panic!("Could not find instructions account");
+    //     // }
+
+    //     let program_indices: Vec<IndexOfAccount> = vec![0];
+    //     let result_msg = MessageProcessor::process_message(
+    //         &sanitized.unwrap().message().to_owned(), // ERROR WITH SOLANA_SVM VERSION 
+    //         // ?should be fixed with help of chagning versions of solana-svm ?
+    //         // &sanitized.unwrap().message().to_owned(),
+    //         &[program_indices],  // TODO: automotize this process
+    //         &mut invoke_context,
+    //         &mut timings,
+    //         &mut used_cu,
+    //     );
+
+    //     log::info!("{:?}", &result_msg);
+    //     log::info!("The message was done sucessfully");
+
+
+
+   
 
 
 // TWO WAYS -> TRANSACTIONBATCHPROCCESOR OR MESSAGEPROCESSOR

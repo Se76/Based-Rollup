@@ -12,6 +12,7 @@ mod rollupdb;
 mod sequencer;
 mod settle;
 mod processor;
+mod loader;
 
 // #[actix_web::main]
 fn main() {
