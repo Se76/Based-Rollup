@@ -13,6 +13,7 @@ mod sequencer;
 mod settle;
 mod processor;
 mod loader;
+mod bundler;
 
 // #[actix_web::main]
 fn main() {

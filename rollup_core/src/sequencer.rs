@@ -29,6 +29,7 @@ use solana_svm::{
 use crate::{rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
+use crate::bundler::*;
 
 pub fn run(
     sequencer_receiver_channel: CBReceiver<Transaction>,
@@ -99,7 +100,18 @@ pub fn run(
             &HashSet::new(),
         );
 
-        log::info!("{:?}", sanitized.clone());
+        log::info!("Sanitized txs: {:?}", sanitized.clone());
+
+        //TO DELETE: Detect if transaction contains a transfer ix
+        let ixs = get_transaction_instructions(&transaction);
+        let acc_keys: &[Pubkey] = &transaction.message.account_keys;
+        ixs.iter().for_each(|ix| {
+            if is_transfer_ix(ix, acc_keys){
+                log::info!("\n\nTransfer IX detected: \n{:?}\n\n", ix);
+            } else {
+                log::info!("\nIX not a transfer IX\n");
+            }
+        });
 
         let needed_programs: Vec<(Pubkey, AccountSharedData)> = 
         accounts_data
@@ -153,7 +165,13 @@ pub fn run(
             &processing_environment, 
             &processing_config
         );
-        log::info!("{:#?}", status.processing_results);
+        log::info!("Processing results: {:#?}", status.processing_results);
+
+        //TO DELETE: Check to confirm if transfer instructions are correctly parsed
+        let ixs = get_transaction_instructions(&transaction);
+        let acc_keys: &[Pubkey] = &transaction.message.account_keys;
+        let (from, to, amount) = TransferBundler::parse_instruction(&ixs[0], acc_keys).unwrap();
+        log::info!("\nFrom: {from:?}\nTo: {to:?}\nAmount: {amount}\n");
         
              // Send processed transaction to db for storage and availability
         rollupdb_sender

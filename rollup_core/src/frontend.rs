@@ -72,11 +72,11 @@ pub async fn get_transaction(
         .unwrap();
 
     if let Ok(frontend_message) = frontend_receiver.recv().await {
-        return Ok(HttpResponse::Ok().json(RollupTransaction {
-            sender: "Rollup RPC".into(),
-            sol_transaction: frontend_message.transaction.unwrap(),
-        }));
-        // Ok(HttpResponse::Ok().json(HashMap::from([("Transaction status", "requested")])))
+        // return Ok(HttpResponse::Ok().json(RollupTransaction {
+        //     sender: "Rollup RPC".into(),
+        //     sol_transaction: frontend_message.transaction.unwrap(),
+        // }));
+        return Ok(HttpResponse::Ok().json(HashMap::from([("Transaction status", "transaction requested received")])));
     }
 
     Ok(HttpResponse::Ok().json(HashMap::from([("Transaction status", "requested")])))
