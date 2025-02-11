@@ -67,6 +67,7 @@ pub async fn get_transaction(
             add_processed_transaction: None,
             frontend_get_tx: Some(Hash::new(body.get_tx.as_bytes())),
             add_settle_proof: None,
+            get_account: None,
         })
         .await
         .unwrap();

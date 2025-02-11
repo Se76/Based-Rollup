@@ -5,7 +5,7 @@ use std::{
 };
 
 use anyhow::{anyhow, Result};
-use async_channel::Sender;
+use async_channel::{Sender, Receiver};
 use crossbeam::channel::{Sender as CBSender, Receiver as CBReceiver};
 use solana_client::{nonblocking::rpc_client as nonblocking_rpc_client, rpc_client::RpcClient};
 use solana_compute_budget::compute_budget::ComputeBudget;
@@ -33,6 +33,7 @@ use crate::processor::*;
 pub fn run(
     sequencer_receiver_channel: CBReceiver<Transaction>,
     rollupdb_sender: CBSender<RollupDBMessage>,
+    account_reciever: Receiver<Option<AccountSharedData>>
 ) -> Result<()> {
     let mut tx_counter = 0u32;
     while let transaction = sequencer_receiver_channel.recv().unwrap() {
@@ -45,6 +46,7 @@ pub fn run(
                 frontend_get_tx: None,
                 add_settle_proof: None,
                 add_processed_transaction: None,
+                get_account: None,
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
@@ -85,13 +87,36 @@ pub fn run(
             .message
             .account_keys
             .iter()
-            .map(|pubkey| {
-                (
-                    pubkey.clone(),
-                    rpc_client_temp.get_account(pubkey).unwrap().into(),
-                )
+            .filter_map(|pubkey| {
+                rollupdb_sender.send(RollupDBMessage {
+                    lock_accounts: None,
+                    frontend_get_tx: None,
+                    add_settle_proof: None,
+                    add_processed_transaction: None,
+                    get_account: Some(*pubkey),
+                })
+                .map_err(|_| anyhow!("failed to send message to rollupdb")).unwrap();
+
+                if let Ok(Some(account_data)) = account_reciever.try_recv() {
+                    // If the pubkey exists in accounts_db, return the stored value
+                    Some((pubkey.clone(), account_data.clone()))
+                } else {
+                    // Otherwise, fetch from rpc_client_temp
+                    log::info!("Fetching account from rpc_client_temp");
+                    log::info!("{:?}", pubkey);
+                    match rpc_client_temp.get_account(pubkey) {
+                        Ok(account) => Some((pubkey.clone(), account.into())),
+                        Err(_) => None, // If the fetch fails, filter it out // SHOULD RETURN A CUSTOM ERROR
+                    }
+                }
             })
             .collect::<Vec<(Pubkey, AccountSharedData)>>();
+        // .map(|pubkey| {
+        //     (
+        //         pubkey.clone(),
+        //         rpc_client_temp.get_account(pubkey).unwrap().into(),
+        //     )
+        // })
 
         let mut used_cu = 0u64;
         let sanitized = SanitizedTransaction::try_from_legacy_transaction( // to check here for the problem
@@ -108,7 +133,7 @@ pub fn run(
         .map(|(pubkey, account)| (pubkey.clone(), account.clone()))
         .collect();
 
-        log::info!("accounts_data: {needed_programs:?}");
+        // log::info!("accounts_data: {needed_programs:?}");
 
         let mut rollup_account_loader = RollupAccountLoader::new(
             &rpc_client_temp,
@@ -154,7 +179,7 @@ pub fn run(
             &processing_config
         );
         log::info!("{:#?}", status.processing_results);
-        
+
              // Send processed transaction to db for storage and availability
         rollupdb_sender
             .send(RollupDBMessage {
@@ -162,6 +187,7 @@ pub fn run(
                 add_processed_transaction: Some(transaction),
                 frontend_get_tx: None,
                 add_settle_proof: None,
+                get_account: None,
             })
             
             .unwrap();

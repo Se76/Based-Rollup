@@ -4,7 +4,7 @@ use actix_web::{web, App, HttpServer};
 use async_channel;
 use frontend::FrontendMessage;
 use rollupdb::{RollupDB, RollupDBMessage};
-use solana_sdk::transaction::Transaction;
+use solana_sdk::{account::AccountSharedData, transaction::Transaction};
 use tokio::runtime::Builder;
 use crossbeam;
 mod frontend;
@@ -27,6 +27,7 @@ fn main() {
     // let (sequencer_sender, sequencer_receiver) = async_channel::bounded::<Transaction>(100); // Channel for communication between frontend and sequencer
     // let (rollupdb_sender, rollupdb_receiver) = async_channel::unbounded::<RollupDBMessage>(); // Channel for communication between sequencer and accountsdb
     let (frontend_sender, frontend_receiver) = async_channel::unbounded::<FrontendMessage>(); // Channel for communication between data availability layer and frontend
+    let (account_sender, account_receiver) = async_channel::unbounded::<Option<AccountSharedData>>();
     // std::thread::spawn(sequencer::run(sequencer_receiver, rollupdb_sender.clone()));
     
     // let rt = Builder::new()
@@ -46,8 +47,8 @@ fn main() {
 
 
 
-        rt.block_on(async {sequencer::run(sequencer_receiver, db_sender2).unwrap()});
-        rt.spawn(RollupDB::run(rollupdb_receiver, fe_2));
+        rt.block_on(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver).unwrap()});
+        rt.spawn(RollupDB::run(rollupdb_receiver, fe_2, account_sender));
     });
     // Create sequencer task
     // tokio::spawn(sequencer::run(sequencer_receiver, rollupdb_sender.clone()));

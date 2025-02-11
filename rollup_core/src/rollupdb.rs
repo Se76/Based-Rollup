@@ -18,6 +18,7 @@ pub struct RollupDBMessage {
     pub add_processed_transaction: Option<Transaction>,
     pub frontend_get_tx: Option<Hash>,
     pub add_settle_proof: Option<String>,
+    pub get_account: Option<Pubkey>,
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -31,6 +32,7 @@ impl RollupDB {
     pub async fn run(
         rollup_db_receiver: CBReceiver<RollupDBMessage>,
         frontend_sender: Sender<FrontendMessage>,
+        account_sender: Sender<Option<AccountSharedData>>
     ) {
         let mut db = RollupDB {
             accounts_db: HashMap::new(),
@@ -39,8 +41,14 @@ impl RollupDB {
         };
 
         while let Ok(message) = rollup_db_receiver.recv() {
+            println!("everything is allllllllllllllllllllrighty");
+            println!("everything is allllllllllllllllllllrighty");
+            println!("everything is allllllllllllllllllllrighty");
             if let Some(accounts_to_lock) = message.lock_accounts {
                 // Lock accounts, by removing them from the accounts_db hashmap, and adding them to locked accounts
+                log::info!("{:#?}", db.locked_accounts);
+                log::info!("looooooooooooooooooooooooooooooging");
+                println!("everything is allllllllllllllllllllrighty");
                 let _ = accounts_to_lock.iter().map(|pubkey| {
                     db.locked_accounts
                         .insert(pubkey.clone(), db.accounts_db.remove(pubkey).unwrap())
@@ -78,6 +86,16 @@ impl RollupDB {
 
                 // communication channel with database 
                 // communcation with the frontend 
+            }
+            else if let Some(pubkey) = message.get_account {
+                log::info!("{:#?}", db.locked_accounts);
+                log::info!("looooooooooooooooooooooooooooooging");
+                if let Some(account) = db.locked_accounts.get(&pubkey) {
+                    account_sender.send(Some(account.clone())).await.unwrap();
+                }
+                else {
+                    account_sender.send(None).await.unwrap();
+                }
             }
         }
     }
