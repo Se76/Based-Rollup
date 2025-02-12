@@ -13,6 +13,7 @@ mod sequencer;
 mod settle;
 mod processor;
 mod loader;
+mod bundler;
 
 // #[actix_web::main]
 fn main() {
@@ -46,8 +47,8 @@ fn main() {
 
 
 
-        rt.block_on(async {sequencer::run(sequencer_receiver, db_sender2).unwrap()});
         rt.spawn(RollupDB::run(rollupdb_receiver, fe_2));
+        rt.block_on(async {sequencer::run(sequencer_receiver, db_sender2).unwrap()});
     });
     // Create sequencer task
     // tokio::spawn(sequencer::run(sequencer_receiver, rollupdb_sender.clone()));

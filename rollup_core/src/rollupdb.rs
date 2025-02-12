@@ -39,6 +39,7 @@ impl RollupDB {
         };
 
         while let Ok(message) = rollup_db_receiver.recv() {
+            log::info!("Received RollupDBMessage");
             if let Some(accounts_to_lock) = message.lock_accounts {
                 // Lock accounts, by removing them from the accounts_db hashmap, and adding them to locked accounts
                 let _ = accounts_to_lock.iter().map(|pubkey| {
@@ -46,6 +47,7 @@ impl RollupDB {
                         .insert(pubkey.clone(), db.accounts_db.remove(pubkey).unwrap())
                 });
             } else if let Some(get_this_hash_tx) = message.frontend_get_tx {
+                log::info!("Getting tx for frontend");
                 let req_tx = db.transactions.get(&get_this_hash_tx).unwrap();
 
                 frontend_sender
@@ -56,7 +58,7 @@ impl RollupDB {
                     .await
                     .unwrap();
             } else if let Some(tx) = message.add_processed_transaction {
-
+                log::info!("Adding processed tx");
                 // unlocking accounts
                 let locked_keys = tx.message.account_keys.clone(); // get the keys
 
@@ -74,7 +76,7 @@ impl RollupDB {
                 // send transaction to the db.transactions
 
                 db.transactions.insert(tx.message.hash(), tx.clone());
-
+                log::info!("PROCESSED TX: {}", db.transactions.len());
 
                 // communication channel with database 
                 // communcation with the frontend 

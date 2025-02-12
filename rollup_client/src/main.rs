@@ -12,6 +12,7 @@ use solana_sdk::{
     transaction::Transaction,
 };
 use solana_transaction_status::UiTransactionEncoding::{self, Binary};
+use core::hash;
 use std::{collections::HashMap, str::FromStr};
 // use serde_json;
 
@@ -28,8 +29,10 @@ pub struct GetTransaction {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let keypair = signer::keypair::read_keypair_file("/Users/nicknut/Desktop/Q1_SVM/Rollup_SVM_Q1/Basic_Rollup_fork/rollup_client/mykey_1.json").unwrap();
-    let keypair2 = signer::keypair::read_keypair_file("/Users/nicknut/Desktop/Q1_SVM/Rollup_SVM_Q1/Basic_Rollup_fork/rollup_client/testkey.json").unwrap();
+    let path = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/mykey_1.json";
+    let path2 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/testkey.json";
+    let keypair = signer::keypair::read_keypair_file(path.to_string()).unwrap();
+    let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
     let ix =
@@ -79,11 +82,11 @@ async fn main() -> Result<()> {
 
     let tx_resp = client
         .post("http://127.0.0.1:8080/get_transaction")
-        .json(&HashMap::from([("get_tx", hasher.result().to_string())]))
+        .json(&GetTransaction{get_tx: rtx.sol_transaction.message.hash().to_string()})
         .send()
-        .await?
-        .json::<HashMap<String, String>>()
         .await?;
+        // .json::<HashMap<String, String>>()
+        // .await?;
 
     println!("{tx_resp:#?}");
 
