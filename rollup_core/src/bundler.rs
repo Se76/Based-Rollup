@@ -52,6 +52,8 @@ impl TransferBundler {
         let from = account_keys[ix.accounts[0] as usize];
         let to = account_keys[ix.accounts[1] as usize];
 
+        log::info!("FROM: {:?}", from.to_string());
+        log::info!("TO: {:?}", to.to_string());
         log::info!("IX DATA: {:?}", ix.data);
 
         let amount = u64::from_le_bytes(ix.data[4..12].try_into().ok()?);

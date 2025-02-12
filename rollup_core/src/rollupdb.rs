@@ -1,4 +1,5 @@
 use async_channel::{Receiver, Sender};
+use log::log;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{
     account::AccountSharedData, hash::Hash, pubkey::Pubkey, transaction::Transaction, // keccak::Hash -> hash::Hash
@@ -11,6 +12,7 @@ use std::{
 };
 
 use crate::frontend::FrontendMessage;
+use crate::bundler::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct RollupDBMessage {
@@ -18,6 +20,8 @@ pub struct RollupDBMessage {
     pub add_processed_transaction: Option<Transaction>,
     pub frontend_get_tx: Option<Hash>,
     pub add_settle_proof: Option<String>,
+    //Testing purposes
+    pub bundle_tx: bool
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -80,6 +84,14 @@ impl RollupDB {
 
                 // communication channel with database 
                 // communcation with the frontend 
+            } else if message.bundle_tx {
+                log::info!("BUNDLING TX");
+                let mut tx_bundler = TransferBundler::new();
+                for (_, tx) in db.transactions.clone() {
+                    tx_bundler.bundle(tx);
+                }
+                let final_ix = tx_bundler.generate_final();
+                log::info!("Final Transfer Ix: {final_ix:#?}");
             }
         }
     }

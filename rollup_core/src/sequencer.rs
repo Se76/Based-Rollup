@@ -45,6 +45,7 @@ pub fn run(
                 frontend_get_tx: None,
                 add_settle_proof: None,
                 add_processed_transaction: None,
+                bundle_tx: false
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
@@ -162,12 +163,22 @@ pub fn run(
                 add_processed_transaction: Some(transaction),
                 frontend_get_tx: None,
                 add_settle_proof: None,
+                bundle_tx: false
             })
             
             .unwrap();
 
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
+            //bundle transfer tx test
+            rollupdb_sender.send(RollupDBMessage {
+                lock_accounts: None,
+                add_processed_transaction: None,
+                add_settle_proof: None,
+                frontend_get_tx: None,
+                bundle_tx: true
+            }).unwrap();
+
             // Lock db to avoid state changes during settlement
 
             // Prepare root hash, or your own proof to send to chain
