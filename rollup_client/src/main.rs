@@ -13,7 +13,7 @@ use solana_sdk::{
 };
 use solana_transaction_status::UiTransactionEncoding::{self, Binary};
 use core::hash;
-use std::{collections::HashMap, str::FromStr};
+use std::{collections::HashMap, ops::Div, str::FromStr};
 // use serde_json;
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -120,14 +120,13 @@ async fn main() -> Result<()> {
 }
 
 async fn gen_transfer_tx(path1: String, path2: String, amount: u64) -> Transaction {
-    let path = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/mykey_1.json";
-    let path2 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/testkey.json";
-    let keypair = signer::keypair::read_keypair_file(path.to_string()).unwrap();
+    println!("Amount: {amount}");
+    let keypair = signer::keypair::read_keypair_file(path1.to_string()).unwrap();
     let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
     let ix =
-        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), (amount/10) * LAMPORTS_PER_SOL);
+        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), amount * (LAMPORTS_PER_SOL / 10));
     Transaction::new_signed_with_payer(
         &[ix],
         Some(&keypair2.pubkey()),

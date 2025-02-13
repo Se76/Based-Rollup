@@ -92,6 +92,7 @@ impl RollupDB {
                 }
                 let final_ix = tx_bundler.generate_final();
                 log::info!("Final Transfer Ix: {final_ix:#?}");
+                db.transactions.clear();
             }
         }
     }

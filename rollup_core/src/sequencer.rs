@@ -29,6 +29,7 @@ use solana_svm::{
 use crate::{rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
+use crate::bundler::*;
 
 pub fn run(
     sequencer_receiver_channel: CBReceiver<Transaction>,
@@ -160,13 +161,26 @@ pub fn run(
         rollupdb_sender
             .send(RollupDBMessage {
                 lock_accounts: None,
-                add_processed_transaction: Some(transaction),
+                add_processed_transaction: Some(transaction.clone()),
                 frontend_get_tx: None,
                 add_settle_proof: None,
                 bundle_tx: false
             })
             
             .unwrap();
+
+        //View sent processed tx details
+        let ixs = get_transaction_instructions(&transaction);
+        let acc_keys: &[Pubkey] = &transaction.message.account_keys;
+        if let Some((from, to, amount)) = TransferBundler::parse_instruction(&ixs[0], acc_keys) {
+                log::info!("
+                    Transaction Info\n
+                    From: {from:?}\n
+                    To: {to:?}\n
+                    Amount: {amount}
+
+                ")
+            }
 
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
