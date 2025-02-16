@@ -36,7 +36,7 @@ impl RollupDB {
     pub async fn run(
         rollup_db_receiver: CBReceiver<RollupDBMessage>,
         frontend_sender: Sender<FrontendMessage>,
-        account_sender: Sender<Option<AccountSharedData>>
+        account_sender: Sender<Option<Vec<(Pubkey, AccountSharedData)>>>
     ) {
         let mut db = RollupDB {
             accounts_db: HashMap::new(),
@@ -45,6 +45,7 @@ impl RollupDB {
         };
         while let Ok(message) = rollup_db_receiver.recv() {
             if let Some(accounts_to_lock) = message.lock_accounts {
+                let mut information_to_send: Vec<(Pubkey, AccountSharedData)> = Vec::new();
                 log::info!("locking: {:?}", db.accounts_db);
                 // Lock accounts, by removing them from the accounts_db hashmap, and adding them to locked accounts
                 for pubkey in accounts_to_lock.iter() {
@@ -61,11 +62,23 @@ impl RollupDB {
                         .insert(pubkey.clone(), data);
                         log::info!("account was not found");
                     }
+
+                    if let Some(account) = db.locked_accounts.get(&pubkey) {
+                        // account_sender.send(Some(account.clone())).await.unwrap();
+                        information_to_send.push((*pubkey, account.clone()));
+                    }
+                    else {
+                        // account_sender.send(None).await.unwrap();
+                        panic!()
+                    }
+
                 }
                 log::info!("locking done: {:?}", db.accounts_db);
                 log::info!("locked accounts done: {:?}", db.locked_accounts);
 
                 
+                log::info!("information to send -> {:?}", information_to_send);
+                account_sender.send(Some(information_to_send)).await.unwrap();
                 // log::info!("2: {:#?}", db.locked_accounts);
             } else if let Some(get_this_hash_tx) = message.frontend_get_tx {
                 let req_tx = db.transactions.get(&get_this_hash_tx).unwrap();
@@ -102,16 +115,16 @@ impl RollupDB {
                 // communication channel with database 
                 // communcation with the frontend 
             }
-            else if let Some(pubkey) = message.get_account {
+            // else if let Some(pubkey) = message.get_account {
                 
-                log::info!("4321: {:#?}", db.locked_accounts);
-                if let Some(account) = db.locked_accounts.get(&pubkey) {
-                    account_sender.send(Some(account.clone())).await.unwrap();
-                }
-                else {
-                    account_sender.send(None).await.unwrap();
-                }
-            }
+            //     log::info!("4321: {:#?}", db.locked_accounts);
+            //     if let Some(account) = db.locked_accounts.get(&pubkey) {
+            //         account_sender.send(Some(account.clone())).await.unwrap();
+            //     }
+            //     else {
+            //         account_sender.send(None).await.unwrap();
+            //     }
+            // }
         }
     }
 }

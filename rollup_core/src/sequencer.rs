@@ -1,7 +1,6 @@
 use core::panic;
 use std::{
-    collections::{HashMap, HashSet},
-    sync::{Arc, RwLock},
+    collections::{HashMap, HashSet}, sync::{Arc, RwLock}, thread::sleep, time, vec
 };
 
 use anyhow::{anyhow, Result};
@@ -28,10 +27,10 @@ use crate::loader::RollupAccountLoader;
 use crate::processor::*;
 use crate::errors::RollupErrors;
 
-pub fn run( // async
+pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
     rollupdb_sender: CBSender<RollupDBMessage>, // CBSender
-    account_reciever: Receiver<Option<AccountSharedData>>,
+    account_reciever: Receiver<Option<Vec<(Pubkey, AccountSharedData)>>>,
     // rx: tokio::sync::oneshot::Receiver<std::option::Option<bool>>  // sync_ver_sender
 ) -> Result<()> {
     // let (tx, rx) = oneshot::channel(); // Create a channel to wait for response
@@ -59,7 +58,18 @@ pub fn run( // async
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
-        // rx.await.map_err(|_| anyhow!("failed to receive response"))?;
+
+        if let Some(vec_of_accounts_data) = account_reciever.recv().await.unwrap() {
+            log::info!("received::: {:?}", vec_of_accounts_data);
+            for (pubkey, account) in vec_of_accounts_data.iter() {
+                rollup_account_loader.add_account(*pubkey, account.clone());
+                log::info!("sucess:")
+            }
+        }
+        for pubkey in transaction.message.account_keys.iter(){
+            let data = rollup_account_loader.get_account_shared_data(pubkey);
+            log::info!("data from an account: {:?}", data);
+        }
 
         let compute_budget = ComputeBudget::default();
         let feature_set = FeatureSet::all_enabled();
@@ -70,42 +80,6 @@ pub fn run( // async
         let mut timings = ExecuteTimings::default();
         let fork_graph = Arc::new(RwLock::new(RollupForkGraph {}));
 
-        let accounts_data = transaction // adding reference
-            .message
-            .account_keys
-            .iter()
-            .filter_map(|pubkey| {
-                rollupdb_sender.send(RollupDBMessage {
-                    lock_accounts: None,
-                    frontend_get_tx: None,
-                    add_settle_proof: None,
-                    add_new_data: None,
-                    add_processed_transaction: None,
-                    get_account: Some(*pubkey),
-                    // response: Some(true)
-                })
-                .map_err(|_| anyhow!("failed to send message to rollupdb")).unwrap();
-            // rx.await.map_err(|_| anyhow!("failed to receive response"))?;
-                if let Ok(Some(account_data)) = account_reciever.try_recv() {
-                    // If the pubkey exists in accounts_db, return the stored value
-                    log::info!("account was recieved");
-                    log::info!("account was recieved, its data: {:?}", account_data);
-                    Some((pubkey.clone(), account_data.clone()))
-                } else {
-                    log::info!("account was copied from rpc");
-                    log::info!("account was copied from rpc, its data: {:?}", rpc_client_temp.get_account(pubkey).unwrap());
-                    // Otherwise, fetch from rpc_client_temp
-                    // log::info!("Fetching account from rpc_client_temp");
-                    // log::info!("{:?}", pubkey);
-                    match rpc_client_temp.get_account(pubkey) {
-                        Ok(account) => Some((pubkey.clone(), account.into())),
-                        Err(_) => None, // If the fetch fails, filter it out // SHOULD RETURN A CUSTOM ERROR
-                    }
-                }
-            })
-            .collect::<Vec<(Pubkey, AccountSharedData)>>();
-        log::info!("accounts_data: {:?}", &accounts_data);
-
         let mut used_cu = 0u64;
         let sanitized = SanitizedTransaction::try_from_legacy_transaction( // to check here for the problem
             Transaction::from(transaction.clone()),
@@ -114,19 +88,12 @@ pub fn run( // async
 
         log::info!("{:?}", sanitized.clone());
 
-        let needed_programs: Vec<(Pubkey, AccountSharedData)> = 
-        accounts_data
-        .iter()
-        .filter(|(pubkey, account)| account.executable())
-        .map(|(pubkey, account)| (pubkey.clone(), account.clone()))
-        .collect();
-
-        
-        log::info!("mmmnnn: {:?}", accounts_data);
-        for (pubkey, account) in accounts_data.iter() {
-            rollup_account_loader.add_account(*pubkey, account.clone());
-        }
-        log::info!("huylo: {:?}", rollup_account_loader.cache.read().unwrap());
+        // let needed_programs: Vec<(Pubkey, AccountSharedData)> = 
+        // accounts_data
+        // .iter()
+        // .filter(|(pubkey, account)| account.executable())
+        // .map(|(pubkey, account)| (pubkey.clone(), account.clone()))
+        // .collect();
 
 
         let processor = create_transaction_batch_processor(
@@ -207,6 +174,41 @@ pub fn run( // async
     }
     Ok(())
 }
+// let accounts_data = transaction // adding reference
+        //     .message
+        //     .account_keys
+        //     .iter()
+        //     .filter_map(|pubkey| {
+        //         rollupdb_sender.send(RollupDBMessage {
+        //             lock_accounts: None,
+        //             frontend_get_tx: None,
+        //             add_settle_proof: None,
+        //             add_new_data: None,
+        //             add_processed_transaction: None,
+        //             get_account: Some(*pubkey),
+        //             // response: Some(true)
+        //         })
+        //         .map_err(|_| anyhow!("failed to send message to rollupdb")).unwrap();
+        //     // rx.await.map_err(|_| anyhow!("failed to receive response"))?;
+        //         if let Ok(Some(account_data)) = account_reciever.try_recv() {
+        //             // If the pubkey exists in accounts_db, return the stored value
+        //             log::info!("account was recieved");
+        //             log::info!("account was recieved, its data: {:?}", account_data);
+        //             Some((pubkey.clone(), account_data.clone()))
+        //         } else {
+        //             log::info!("account was copied from rpc");
+        //             log::info!("account was copied from rpc, its data: {:?}", rpc_client_temp.get_account(pubkey).unwrap());
+        //             // Otherwise, fetch from rpc_client_temp
+        //             // log::info!("Fetching account from rpc_client_temp");
+        //             // log::info!("{:?}", pubkey);
+        //             match rpc_client_temp.get_account(pubkey) {
+        //                 Ok(account) => Some((pubkey.clone(), account.into())),
+        //                 Err(_) => None, // If the fetch fails, filter it out // SHOULD RETURN A CUSTOM ERROR
+        //             }
+        //         }
+        //     })
+        //     .collect::<Vec<(Pubkey, AccountSharedData)>>();
+        // log::info!("accounts_data: {:?}", &accounts_data);
 
 
             // CREATE A PROOF FOR THE CHANGES STATE
