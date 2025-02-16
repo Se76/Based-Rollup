@@ -20,22 +20,29 @@ use solana_sdk::{
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
-    message_processor::MessageProcessor,
-    program_loader::load_program_with_pubkey,
-    transaction_processing_callback::TransactionProcessingCallback,
-    transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment},
+    message_processor::MessageProcessor, program_loader::load_program_with_pubkey, transaction_processing_callback::TransactionProcessingCallback, transaction_processing_result::ProcessedTransaction, transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment}
 };
-
+use tokio;
 use crate::{rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
+use crate::errors::RollupErrors;
 
-pub fn run(
-    sequencer_receiver_channel: CBReceiver<Transaction>,
-    rollupdb_sender: CBSender<RollupDBMessage>,
-    account_reciever: Receiver<Option<AccountSharedData>>
+pub fn run( // async
+    sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
+    rollupdb_sender: CBSender<RollupDBMessage>, // CBSender
+    account_reciever: Receiver<Option<AccountSharedData>>,
+    // rx: tokio::sync::oneshot::Receiver<std::option::Option<bool>>  // sync_ver_sender
 ) -> Result<()> {
+    // let (tx, rx) = oneshot::channel(); // Create a channel to wait for response
+
     let mut tx_counter = 0u32;
+
+    let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
+
+    let mut rollup_account_loader = RollupAccountLoader::new(
+        &rpc_client_temp,
+    );
     while let transaction = sequencer_receiver_channel.recv().unwrap() {
         let accounts_to_lock = transaction.message.account_keys.clone();
         tx_counter += 1;
@@ -45,43 +52,23 @@ pub fn run(
                 lock_accounts: Some(accounts_to_lock),
                 frontend_get_tx: None,
                 add_settle_proof: None,
+                add_new_data: None,
                 add_processed_transaction: None,
                 get_account: None,
+                // response: Some(true), 
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
-
-        // Verify ransaction signatures, integrity
-
-        // Process transaction
+        // rx.await.map_err(|_| anyhow!("failed to receive response"))?;
 
         let compute_budget = ComputeBudget::default();
         let feature_set = FeatureSet::all_enabled();
-        let fee_structure = FeeStructure::default();
+        let mut fee_structure = FeeStructure::default();
+        fee_structure.lamports_per_signature = 0;
         let lamports_per_signature = fee_structure.lamports_per_signature;
         let rent_collector = RentCollector::default();
         let mut timings = ExecuteTimings::default();
         let fork_graph = Arc::new(RwLock::new(RollupForkGraph {}));
-
-
-        
-        // let rent_collector = RentCollector::default();
-
-        // Solana runtime.
-        // let fork_graph = Arc::new(RwLock::new(SequencerForkGraph {}));
-
-        // // create transaction processor, add accounts and programs, builtins,
-        // let processor = TransactionBatchProcessor::<SequencerForkGraph>::default();
-
-        // let mut cache = processor.program_cache.write().unwrap();
-
-        // // Initialize the mocked fork graph.
-        // // let fork_graph = Arc::new(RwLock::new(PayTubeForkGraph {}));
-        // cache.fork_graph = Some(Arc::downgrade(&fork_graph));
-
-        // let rent = Rent::default();
-
-        let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
 
         let accounts_data = transaction // adding reference
             .message
@@ -92,18 +79,24 @@ pub fn run(
                     lock_accounts: None,
                     frontend_get_tx: None,
                     add_settle_proof: None,
+                    add_new_data: None,
                     add_processed_transaction: None,
                     get_account: Some(*pubkey),
+                    // response: Some(true)
                 })
                 .map_err(|_| anyhow!("failed to send message to rollupdb")).unwrap();
-
+            // rx.await.map_err(|_| anyhow!("failed to receive response"))?;
                 if let Ok(Some(account_data)) = account_reciever.try_recv() {
                     // If the pubkey exists in accounts_db, return the stored value
+                    log::info!("account was recieved");
+                    log::info!("account was recieved, its data: {:?}", account_data);
                     Some((pubkey.clone(), account_data.clone()))
                 } else {
+                    log::info!("account was copied from rpc");
+                    log::info!("account was copied from rpc, its data: {:?}", rpc_client_temp.get_account(pubkey).unwrap());
                     // Otherwise, fetch from rpc_client_temp
-                    log::info!("Fetching account from rpc_client_temp");
-                    log::info!("{:?}", pubkey);
+                    // log::info!("Fetching account from rpc_client_temp");
+                    // log::info!("{:?}", pubkey);
                     match rpc_client_temp.get_account(pubkey) {
                         Ok(account) => Some((pubkey.clone(), account.into())),
                         Err(_) => None, // If the fetch fails, filter it out // SHOULD RETURN A CUSTOM ERROR
@@ -111,12 +104,7 @@ pub fn run(
                 }
             })
             .collect::<Vec<(Pubkey, AccountSharedData)>>();
-        // .map(|pubkey| {
-        //     (
-        //         pubkey.clone(),
-        //         rpc_client_temp.get_account(pubkey).unwrap().into(),
-        //     )
-        // })
+        log::info!("accounts_data: {:?}", &accounts_data);
 
         let mut used_cu = 0u64;
         let sanitized = SanitizedTransaction::try_from_legacy_transaction( // to check here for the problem
@@ -133,15 +121,12 @@ pub fn run(
         .map(|(pubkey, account)| (pubkey.clone(), account.clone()))
         .collect();
 
-        // log::info!("accounts_data: {needed_programs:?}");
-
-        let mut rollup_account_loader = RollupAccountLoader::new(
-            &rpc_client_temp,
-        );
-
-        for (pubkey, account) in needed_programs.iter() {
+        
+        log::info!("mmmnnn: {:?}", accounts_data);
+        for (pubkey, account) in accounts_data.iter() {
             rollup_account_loader.add_account(*pubkey, account.clone());
         }
+        log::info!("huylo: {:?}", rollup_account_loader.cache.read().unwrap());
 
 
         let processor = create_transaction_batch_processor(
@@ -169,8 +154,6 @@ pub fn run(
             ..Default::default()
         };
 
-
-
         let status = processor.load_and_execute_sanitized_transactions(
             &rollup_account_loader, 
             sanitized_transaction, 
@@ -179,12 +162,37 @@ pub fn run(
             &processing_config
         );
         log::info!("{:#?}", status.processing_results);
+        log::info!("error_metrics: {:#?}", status.error_metrics);
 
+        let data_new = 
+        status
+        .processing_results
+        .iter()
+        .map(|res| {
+            println!("Executed transaction:");
+            log::info!("Executed transaction");
+            let enum_one = res.as_ref().unwrap();
+    
+            match enum_one {
+                ProcessedTransaction::Executed(tx) => {
+                    println!("Executed transaction: {:?}", tx.loaded_transaction.accounts);
+                    Some(tx.loaded_transaction.accounts.clone()) 
+                }
+                ProcessedTransaction::FeesOnly(tx) => {
+                    println!("Fees-only transaction: {:?}", tx);
+                    None 
+                }
+            }
+        }).collect::<Vec<Option<Vec<(Pubkey, AccountSharedData)>>>>();
+
+        let first_index_data = data_new[0].as_ref().unwrap().clone();
+        log::info!("swq {:?}", first_index_data);
              // Send processed transaction to db for storage and availability
         rollupdb_sender
             .send(RollupDBMessage {
                 lock_accounts: None,
                 add_processed_transaction: Some(transaction),
+                add_new_data: Some(first_index_data),
                 frontend_get_tx: None,
                 add_settle_proof: None,
                 get_account: None,
@@ -194,24 +202,51 @@ pub fn run(
 
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
-            // Lock db to avoid state changes during settlement
+            tx_counter = 0u32;
+        }
+    }
+    Ok(())
+}
+
+
+            // CREATE A PROOF FOR THE CHANGES STATE
+
+// Lock db to avoid state changes during settlement
 
             // Prepare root hash, or your own proof to send to chain
 
             // Send proof to chain
 
             // let _settle_tx_hash = settle_state("proof".into()).await?;
-            tx_counter = 0u32;
+        // .map(|pubkey| {
+        //     (
+        //         pubkey.clone(),
+        //         rpc_client_temp.get_account(pubkey).unwrap().into(),
+        //     )
+        // })
 
 
-            // CREATE A PROOF FOR THE CHANGES STATE
-        }
-    }
+// log::info!("accounts_data: {needed_programs:?}");
 
-    Ok(())
-}
+        // for (pubkey, account) in needed_programs.iter() {
+        //     rollup_account_loader.add_account(*pubkey, account.clone());
+        // }
 
+// let rent_collector = RentCollector::default();
 
+        // Solana runtime.
+        // let fork_graph = Arc::new(RwLock::new(SequencerForkGraph {}));
+
+        // // create transaction processor, add accounts and programs, builtins,
+        // let processor = TransactionBatchProcessor::<SequencerForkGraph>::default();
+
+        // let mut cache = processor.program_cache.write().unwrap();
+
+        // // Initialize the mocked fork graph.
+        // // let fork_graph = Arc::new(RwLock::new(PayTubeForkGraph {}));
+        // cache.fork_graph = Some(Arc::downgrade(&fork_graph));
+
+        // let rent = Rent::default();
 
 
  

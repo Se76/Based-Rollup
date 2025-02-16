@@ -4,7 +4,7 @@ use serde::{Deserialize, Serialize};
 use solana_client::nonblocking::rpc_client::{self, RpcClient};
 use solana_sdk::{
     instruction::Instruction,
-    keccak::{Hash, Hasher},
+    hash::{Hash, Hasher},
     native_token::LAMPORTS_PER_SOL,
     signature::Signature,
     signer::{self, Signer},
@@ -33,7 +33,7 @@ async fn main() -> Result<()> {
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
     let ix =
-        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/2));
+        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/4));
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&keypair2.pubkey()),
@@ -81,9 +81,9 @@ async fn main() -> Result<()> {
         .post("http://127.0.0.1:8080/get_transaction")
         .json(&HashMap::from([("get_tx", hasher.result().to_string())]))
         .send()
-        .await?
-        .json::<HashMap<String, String>>()
         .await?;
+        // .json::<HashMap<String, String>>()
+        // .await?;
 
     println!("{tx_resp:#?}");
 
