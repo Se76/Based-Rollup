@@ -36,7 +36,8 @@ impl RollupDB {
     pub async fn run(
         rollup_db_receiver: CBReceiver<RollupDBMessage>,
         frontend_sender: Sender<FrontendMessage>,
-        account_sender: Sender<Option<Vec<(Pubkey, AccountSharedData)>>>
+        account_sender: Sender<Option<Vec<(Pubkey, AccountSharedData)>>>,
+        sender_locked_accounts: Sender<bool>,
     ) {
         let mut db = RollupDB {
             accounts_db: HashMap::new(),
@@ -115,8 +116,13 @@ impl RollupDB {
                 // communication channel with database 
                 // communcation with the frontend 
             }
-            // else if let Some(pubkey) = message.get_account {
-                
+            else if let Some(pubkey) = message.get_account {
+                if db.locked_accounts.contains_key(&pubkey) {
+                    sender_locked_accounts.send(true).await.unwrap();
+                } else {
+                    sender_locked_accounts.send(false).await.unwrap();
+                }
+                // if 
             //     log::info!("4321: {:#?}", db.locked_accounts);
             //     if let Some(account) = db.locked_accounts.get(&pubkey) {
             //         account_sender.send(Some(account.clone())).await.unwrap();
@@ -124,7 +130,7 @@ impl RollupDB {
             //     else {
             //         account_sender.send(None).await.unwrap();
             //     }
-            // }
+            }
         }
     }
 }

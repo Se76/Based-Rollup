@@ -1,6 +1,6 @@
 use core::panic;
 use std::{
-    collections::{HashMap, HashSet}, sync::{Arc, RwLock}, thread::sleep, time, vec
+    collections::{HashMap, HashSet}, sync::{Arc, RwLock}, time, vec
 };
 
 use anyhow::{anyhow, Result};
@@ -21,7 +21,7 @@ use solana_timings::ExecuteTimings;
 use solana_svm::{
     message_processor::MessageProcessor, program_loader::load_program_with_pubkey, transaction_processing_callback::TransactionProcessingCallback, transaction_processing_result::ProcessedTransaction, transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment}
 };
-use tokio;
+use tokio::time::{sleep, Duration};
 use crate::{rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
@@ -31,6 +31,7 @@ pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
     rollupdb_sender: CBSender<RollupDBMessage>, // CBSender
     account_reciever: Receiver<Option<Vec<(Pubkey, AccountSharedData)>>>,
+    receiver_locked_accounts: Receiver<bool>,
     // rx: tokio::sync::oneshot::Receiver<std::option::Option<bool>>  // sync_ver_sender
 ) -> Result<()> {
     // let (tx, rx) = oneshot::channel(); // Create a channel to wait for response
@@ -44,6 +45,25 @@ pub async fn run( // async
     );
     while let transaction = sequencer_receiver_channel.recv().unwrap() {
         let accounts_to_lock = transaction.message.account_keys.clone();
+        for pubkey in accounts_to_lock.iter() {
+            loop {
+                rollupdb_sender
+                .send(RollupDBMessage {
+                    lock_accounts: None,
+                    frontend_get_tx: None,
+                    add_settle_proof: None,
+                    add_new_data: None,
+                    add_processed_transaction: None,
+                    get_account: Some(*pubkey),
+            })
+            
+            .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
+                if receiver_locked_accounts.recv().await.unwrap() == false {
+                    break;
+                }
+                sleep(Duration::from_millis(500)).await;
+            }
+        }
         tx_counter += 1;
         // lock accounts in rollupdb to keep paralell execution possible, just like on solana
         rollupdb_sender

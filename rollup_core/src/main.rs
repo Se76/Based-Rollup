@@ -35,6 +35,7 @@ fn main() { // async
     let (frontend_sender, frontend_receiver) = async_channel::unbounded::<FrontendMessage>(); // Channel for communication between data availability layer and frontend
     pub type PubkeyAccountSharedData = Option<Vec<(Pubkey, AccountSharedData)>>;
     let (account_sender, account_receiver) = async_channel::unbounded::<PubkeyAccountSharedData>();
+    let (sender_locked_account, receiver_locked_account) = async_channel::unbounded::<bool>();
     // std::thread::spawn(sequencer::run(sequencer_receiver, rollupdb_sender.clone()));
     
     // let rt = Builder::new()
@@ -53,9 +54,9 @@ fn main() { // async
             .unwrap();
 
 
-        rt.spawn(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver).await.unwrap()}); // .unwrap() 
+        rt.spawn(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver, receiver_locked_account).await.unwrap()}); // .unwrap() 
         // rt.block_on(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver).unwrap()});
-        rt.block_on(RollupDB::run(rollupdb_receiver, fe_2, account_sender));
+        rt.block_on(RollupDB::run(rollupdb_receiver, fe_2, account_sender, sender_locked_account));
         // rt.block_on(async {
         //     tokio::spawn(async move {
         //         RollupDB::run(rollupdb_receiver, fe_2, account_sender).await;
