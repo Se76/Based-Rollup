@@ -103,10 +103,10 @@ pub(crate) fn get_transaction_check_results(
     lamports_per_signature: u64,
 ) -> Vec<transaction::Result<CheckedTransactionDetails>> {
     vec![
-        transaction::Result::Ok(CheckedTransactionDetails {
-            nonce: None,
-            lamports_per_signature,
-        });
+        transaction::Result::Ok(CheckedTransactionDetails::new(
+            None,
+            lamports_per_signature
+        ));
         len
     ]
 }

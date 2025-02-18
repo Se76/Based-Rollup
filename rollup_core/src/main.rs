@@ -1,4 +1,6 @@
 use std::thread;
+use std::sync::{Arc, RwLock};
+use crate::delegation_service::DelegationService;
 
 use actix_web::{web, App, HttpServer};
 use async_channel;
@@ -16,6 +18,8 @@ mod settle;
 mod processor;
 mod loader;
 mod errors;
+mod delegation;
+mod delegation_service;
 
 // #[actix_web::main]
 // #[tokio::main]
@@ -46,6 +50,9 @@ fn main() { // async
     let db_sender2 = rollupdb_sender.clone();
     let fe_2 = frontend_sender.clone();
     
+    let delegation_service = Arc::new(RwLock::new(
+        DelegationService::new("https://api.devnet.solana.com")
+    ));
     
     let asdserver_thread = thread::spawn(|| {
         let rt = Builder::new_multi_thread()
@@ -53,15 +60,15 @@ fn main() { // async
             .build()
             .unwrap();
 
-
-        rt.spawn(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver, receiver_locked_account).await.unwrap()}); // .unwrap() 
-        // rt.block_on(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver).unwrap()});
+        rt.spawn(async {
+            sequencer::run(
+                sequencer_receiver,
+                db_sender2,
+                account_receiver,
+                receiver_locked_account,
+            ).await.unwrap()
+        });
         rt.block_on(RollupDB::run(rollupdb_receiver, fe_2, account_sender, sender_locked_account));
-        // rt.block_on(async {
-        //     tokio::spawn(async move {
-        //         RollupDB::run(rollupdb_receiver, fe_2, account_sender).await;
-        //     });
-        // });
     });
     // Create sequencer task
     // tokio::spawn(sequencer::run(sequencer_receiver, rollupdb_sender.clone()));
@@ -89,6 +96,7 @@ fn main() { // async
                 .app_data(web::Data::new(rollupdb_sender.clone()))
                 .app_data(web::Data::new(frontend_sender.clone()))
                 .app_data(web::Data::new(frontend_receiver.clone()))
+                .app_data(web::Data::new(delegation_service.clone()))
                 .route("/", web::get().to(frontend::test))
                 .route(
                     "/get_transaction",

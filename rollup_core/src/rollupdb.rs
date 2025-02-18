@@ -29,6 +29,7 @@ pub struct RollupDB {
     accounts_db: HashMap<Pubkey, AccountSharedData>,
     locked_accounts: HashMap<Pubkey, AccountSharedData>,
     transactions: HashMap<Hash, Transaction>,
+    pda_mappings: HashMap<Pubkey, Pubkey>,  // user -> pda mapping
     // async_ver_recv: Receiver<Option<bool>>
 }
 
@@ -43,6 +44,7 @@ impl RollupDB {
             accounts_db: HashMap::new(),
             locked_accounts: HashMap::new(),
             transactions: HashMap::new(),
+            pda_mappings: HashMap::new(),
         };
         while let Ok(message) = rollup_db_receiver.recv() {
             if let Some(accounts_to_lock) = message.lock_accounts {
@@ -132,6 +134,14 @@ impl RollupDB {
             //     }
             }
         }
+    }
+
+    pub fn register_pda(&mut self, user: Pubkey, pda: Pubkey) {
+        self.pda_mappings.insert(user, pda);
+    }
+
+    pub fn get_pda_for_user(&self, user: &Pubkey) -> Option<&Pubkey> {
+        self.pda_mappings.get(user)
     }
 }
 
