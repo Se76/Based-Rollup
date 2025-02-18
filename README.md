@@ -11,11 +11,11 @@ Rollups can enhance Solana by:
 - **Flexibility:** Allow for customized transaction processing without changing Solana’s core.
 
 ## Flow
-1. **Fetches Transactions:** 
+1. **Fetches Transactions** 
 2. **Delegates Funds:** Solana program
-3. **Sends to the Sequencer:**
-4. **Locks accounts, Loads, and executes Transactions:** 
-5. **Updates Local State:** 
+3. **Sends to the Sequencer**
+4. **Locks accounts, Loads, and executes Transactions** 
+5. **Updates Local State** 
 6. **Bundles Similar Transactions:** Groups similar transactions into one.
 7. **Batch Bundling:** After 10 transactions, bundles them into a single unit.
 8. **Settles Changes to the Chain:** Commits batched changes back to Solana.
