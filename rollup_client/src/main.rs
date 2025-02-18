@@ -31,6 +31,7 @@ pub struct GetTransaction {
 async fn main() -> Result<()> {
     let path = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/mykey_1.json";
     let path2 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/testkey.json";
+    let path3 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/owner.json";
     let keypair = signer::keypair::read_keypair_file(path.to_string()).unwrap();
     let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
@@ -91,13 +92,25 @@ async fn main() -> Result<()> {
 
     // println!("{tx_resp:#?}");
 
-    let amounts: Vec<i32> = vec![4, -2, 3, -5, 1, -4, 2, -1, 3, -4];
+    // let amounts: Vec<i32> = vec![4, -2, 3, -5, 1, -4, 2, -1, 3, -1];
+    let amounts: Vec<(String, String, i32)> = vec![
+        (path.to_string(), path2.to_string(), 5),
+        (path3.to_string(), path.to_string(), -3),
+        (path2.to_string(), path3.to_string(), 8),
+        (path.to_string(), path3.to_string(), -7),
+        (path2.to_string(), path.to_string(), 4),
+        (path3.to_string(), path2.to_string(), -6),
+        (path.to_string(), path2.to_string(), 9),
+        (path2.to_string(), path3.to_string(), -2),
+        (path3.to_string(), path.to_string(), 1),
+        (path.to_string(), path3.to_string(), -4),
+    ];
     let mut txs: Vec<Transaction> = vec![];
     for amt in amounts {
-        if amt > 0 {
-            txs.push(gen_transfer_tx(path.to_string(), path2.to_string(), amt as u64).await);
+        if amt.2 > 0 {
+            txs.push(gen_transfer_tx(amt.0, amt.1, amt.2 as u64).await);
         } else {
-            txs.push(gen_transfer_tx(path2.to_string(), path.to_string(), amt.abs() as u64).await);
+            txs.push(gen_transfer_tx(amt.1, amt.0, amt.2.abs() as u64).await);
         }
     }
 
@@ -115,6 +128,9 @@ async fn main() -> Result<()> {
         
         println!("Submission {submission:#?}");
     }
+
+    println!("KP: {}", keypair.pubkey());
+    println!("KP2: {}", keypair2.pubkey());
 
     Ok(())
 }

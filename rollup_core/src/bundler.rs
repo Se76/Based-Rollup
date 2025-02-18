@@ -38,7 +38,7 @@ impl TransferBundler {
         }
     }
 
-    pub fn parse_instruction(ix: &CompiledInstruction, account_keys: &[Pubkey]) -> Option<(Pubkey, Pubkey, i128)>{
+    pub fn parse_compiled_instruction(ix: &CompiledInstruction, account_keys: &[Pubkey]) -> Option<(Pubkey, Pubkey, i128)>{
         //Ensure the instruction is from System Program (where transfer is from)
         if ix.program_id_index as usize >= account_keys.len()  || account_keys[ix.program_id_index as usize] != system_program::ID{
             return None;
@@ -60,13 +60,36 @@ impl TransferBundler {
         Some((from, to, amount as i128))
     }
 
+    pub fn parse_instruction(ix: &Instruction) -> Option<(Pubkey, Pubkey, i128)>{
+        //Enusre ix is owned by system program
+        if ix.program_id != system_program::ID{
+            return None;
+        }
+
+        //Ensure we have enough accounts
+        if ix.accounts.len() < 2{
+            return None;
+        }
+        let from = ix.accounts[0].pubkey;
+        let to = ix.accounts[1].pubkey;
+        let amount = u64::from_le_bytes(ix.data[4..].try_into().ok()?);
+        
+        log::info!("FROM: {:?}", from.to_string());
+        log::info!("TO: {:?}", to.to_string());
+        log::info!("AMOUNT: {amount}");
+        log::info!("IX DATA: {:?}", ix.data);
+
+        
+        Some((from, to, amount as i128))
+    }
+
     //Parses transactions and add transfer ixs to TransferBundler
     pub fn bundle(&mut self, transaction: Transaction){
         let ixs = get_transaction_instructions(&transaction);
         let account_keys: &[Pubkey] = &transaction.message.account_keys;
         for ix in ixs {
             if is_transfer_ix(&ix, account_keys){
-                let (from, to, amount) = Self::parse_instruction(&ix, account_keys).unwrap();
+                let (from, to, amount) = Self::parse_compiled_instruction(&ix, account_keys).unwrap();
                 let mut keys = [from, to];
                 keys.sort();
                 

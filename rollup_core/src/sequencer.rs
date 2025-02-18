@@ -172,7 +172,7 @@ pub fn run(
         //View sent processed tx details
         let ixs = get_transaction_instructions(&transaction);
         let acc_keys: &[Pubkey] = &transaction.message.account_keys;
-        if let Some((from, to, amount)) = TransferBundler::parse_instruction(&ixs[0], acc_keys) {
+        if let Some((from, to, amount)) = TransferBundler::parse_compiled_instruction(&ixs[0], acc_keys) {
                 log::info!("
                     Transaction Info\n
                     From: {from:?}\n

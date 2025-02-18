@@ -90,8 +90,13 @@ impl RollupDB {
                 for (_, tx) in db.transactions.clone() {
                     tx_bundler.bundle(tx);
                 }
-                let final_ix = tx_bundler.generate_final();
-                log::info!("Final Transfer Ix: {final_ix:#?}");
+                let final_ixs = tx_bundler.generate_final();
+                log::info!("\nFinal Transfer Ixs:");
+                for ix in final_ixs{
+                    if let Some((from, to, amount)) = TransferBundler::parse_instruction(&ix){
+                    }
+                }
+                log::info!("BUNDLING DONE");
                 db.transactions.clear();
             }
         }
