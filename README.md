@@ -11,6 +11,10 @@ Rollups can enhance Solana by:
 - **Lower fees:** Batch transactions to lower costs.
 - **Flexibility:** Allow for customized transaction processing without changing Solana’s core.
 
+## Currently building:
+- **Support for SPL tokens**
+- **Bundling between 3+ accounts**
+
 ## Flow
 1. **Fetches Transactions** 
 2. **Delegates Funds:** Solana program
