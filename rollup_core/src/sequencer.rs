@@ -56,6 +56,7 @@ pub async fn run( // async
                     add_new_data: None,
                     add_processed_transaction: None,
                     get_account: Some(*pubkey),
+                    bundle_tx: false
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
@@ -210,9 +211,15 @@ pub async fn run( // async
                 lock_accounts: None,
                 add_processed_transaction: None,
                 add_settle_proof: None,
+                get_account: None, 
+                add_new_data: None,
                 frontend_get_tx: None,
                 bundle_tx: true
             }).unwrap();
+        }
+    }
+    Ok(())
+}
 
             // Lock db to avoid state changes during settlement
 

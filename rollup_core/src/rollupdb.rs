@@ -21,6 +21,7 @@ pub struct RollupDBMessage {
     pub frontend_get_tx: Option<Hash>,
     pub add_settle_proof: Option<String>,
     pub get_account: Option<Pubkey>,
+    pub add_new_data: Option<Vec<(Pubkey, AccountSharedData)>>,
     // pub response: Option<bool>, 
     //Testing purposes
     pub bundle_tx: bool
@@ -37,6 +38,8 @@ impl RollupDB {
     pub async fn run(
         rollup_db_receiver: CBReceiver<RollupDBMessage>,
         frontend_sender: Sender<FrontendMessage>,
+        account_sender: Sender<Option<Vec<(Pubkey, AccountSharedData)>>>,
+        sender_locked_accounts: Sender<bool>,
     ) {
         let mut db = RollupDB {
             accounts_db: HashMap::new(),
