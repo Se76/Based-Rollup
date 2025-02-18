@@ -45,7 +45,6 @@ CLI that interacts with the rollup server.
   Entry point for the application. It:
   - Sets up communication channels, using crossbeam and async channels.
   - Creates threads for the sequencer and rollup database.
-  - Runs the Actix server, tying all modules together.
 
 **processor.rs**  
   Provides helper functions to configure and initialize the SVM API’s transaction batch processor. 
