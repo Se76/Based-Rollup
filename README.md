@@ -1,5 +1,6 @@
 ## SVM rollup
 As part of the Turbin3 SVM cohort, our team built our own SVM rollup.
+It fetches transactions, delegates funds via a Solana program, sends transactions to a sequencer, and processes them by locking accounts, loads and executes transactions, updating local state, and bundling similar transactions. Once a batch threshold is met (e.g., after 10 transactions), the rollup bundles them into one and settles the changes back on-chain.
 
 ## Overview
 A rollup is a Layer-2 scaling solution that processes and bundles transactions off-chain before settling them on the main chain. This reduces congestion and fees while keeping the security of the underlying blockchain.
