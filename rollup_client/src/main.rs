@@ -3,13 +3,7 @@ use bincode;
 use serde::{Deserialize, Serialize};
 use solana_client::nonblocking::rpc_client::{self, RpcClient};
 use solana_sdk::{
-    instruction::Instruction,
-    keccak::{Hash, Hasher},
-    native_token::LAMPORTS_PER_SOL,
-    signature::Signature,
-    signer::{self, Signer},
-    system_instruction, system_program,
-    transaction::Transaction,
+    instruction::Instruction, keccak::{Hash, Hasher}, native_token::LAMPORTS_PER_SOL, rent::Rent, signature::{Keypair, Signature}, signer::{self, Signer}, system_instruction, system_program, sysvar::Sysvar, transaction::Transaction
 };
 use solana_transaction_status::UiTransactionEncoding::{self, Binary};
 use core::hash;
@@ -36,13 +30,32 @@ async fn main() -> Result<()> {
     let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
+    //Get and view balance of sender
+    // let balance = rpc_client.get_balance(&keypair2.pubkey()).await?;
+    // println!("Keypair 2 balance: {balance}");
+
     let ix =
-        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/2));
+        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 20 * (LAMPORTS_PER_SOL/2));
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&keypair2.pubkey()),
         &[&keypair2],
         rpc_client.get_latest_blockhash().await.unwrap(),
+    );
+
+    //make a create new account ix
+    let kp = Keypair::new();
+    let create_acc_ix = system_instruction::create_account(
+        &keypair2.pubkey(), 
+        &kp.pubkey(),
+        rpc_client.get_minimum_balance_for_rent_exemption(0).await?, 
+        0, 
+        &system_program::ID);
+    let create_acc_tx = Transaction::new_signed_with_payer(
+        &[create_acc_ix], 
+        Some(&keypair2.pubkey()), 
+        &[&keypair2, &kp], 
+        rpc_client.get_latest_blockhash().await.unwrap()
     );
 
     // let sig = Signature::from_str("3ENa2e9TG6stDNkUZkRcC2Gf5saNMUFhpptQiNg56nGJ9eRBgSJpZBi7WLP5ev7aggG1JAXQWzBk8Xfkjcx1YCM2").unwrap();
@@ -58,11 +71,17 @@ async fn main() -> Result<()> {
         .json::<HashMap<String, String>>()
         .await?;
 
-    println!("{test_response:#?}");
+    println!("{test_response:#?}\n\n");
+    println!("Test Successful!");
 
     let rtx = RollupTransaction {
         sender: "Me".into(),
         sol_transaction: tx,
+    };
+
+    let rtx2 = RollupTransaction {
+        sender: "My creation".into(),
+        sol_transaction: create_acc_tx,
     };
 
     // let serialized_rollup_transaction = serde_json::to_string(&rtx)?;
