@@ -23,6 +23,12 @@ Rollups can enhance Solana by:
 
 ## Module Overview
 
+**rollup_client.rs**  
+CLI that interacts with the rollup server.
+  - Creating and signing a Solana transfer transaction.
+  - Sends the transaction to the rollup via `/submit_transaction`.
+  - Hashes the transaction, via `/get_transaction` for status.
+
 **frontend.rs**  
   Actix Web
   - A submission endpoint (`/submit_transaction`) that accepts and forwards transactions to the sequencer.
