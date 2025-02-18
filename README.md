@@ -17,5 +17,5 @@ Rollups can enhance Solana by:
 4. **Locks accounts, Loads, and executes Transactions** 
 5. **Updates Local State** 
 6. **Bundles Similar Transactions:** Groups similar transactions into one.
-7. **Batch Bundling:** After 10 transactions, bundles them into a single unit.
+7. **Batch(10) Bundling:** After 10 transactions, bundles them into a single transaction.
 8. **Settles Changes to the Chain:** Commits batched changes back to Solana.
