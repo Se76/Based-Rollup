@@ -10,6 +10,8 @@ use std::{
     collections::{HashMap, HashSet},
     default,
 };
+use solana_client::rpc_client::{RpcClient};
+
 
 use crate::frontend::FrontendMessage;
 use crate::bundler::*;
@@ -50,11 +52,41 @@ impl RollupDB {
         while let Ok(message) = rollup_db_receiver.recv() {
             log::info!("Received RollupDBMessage");
             if let Some(accounts_to_lock) = message.lock_accounts {
+                let mut information_to_send: Vec<(Pubkey, AccountSharedData)> = Vec::new();
+                log::info!("locking: {:?}", db.accounts_db);
                 // Lock accounts, by removing them from the accounts_db hashmap, and adding them to locked accounts
-                let _ = accounts_to_lock.iter().map(|pubkey| {
-                    db.locked_accounts
-                        .insert(pubkey.clone(), db.accounts_db.remove(pubkey).unwrap())
-                });
+                for pubkey in accounts_to_lock.iter() {
+                    if let Some(account) = db.accounts_db.get(pubkey) {
+                        db.locked_accounts
+                        .insert(pubkey.clone(), db.accounts_db.remove(pubkey).unwrap());
+                        log::info!("account was found");
+                    }
+                    else {
+                        let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
+                        let account = rpc_client_temp.get_account(pubkey).unwrap();
+                        let data: AccountSharedData = account.into();
+                        db.locked_accounts
+                        .insert(pubkey.clone(), data);
+                        log::info!("account was not found");
+                    }
+
+                    if let Some(account) = db.locked_accounts.get(&pubkey) {
+                        // account_sender.send(Some(account.clone())).await.unwrap();
+                        information_to_send.push((*pubkey, account.clone()));
+                    }
+                    else {
+                        // account_sender.send(None).await.unwrap();
+                        panic!()
+                    }
+
+                }
+                log::info!("locking done: {:?}", db.accounts_db);
+                log::info!("locked accounts done: {:?}", db.locked_accounts);
+
+                
+                log::info!("information to send -> {:?}", information_to_send);
+                account_sender.send(Some(information_to_send)).await.unwrap();
+                // log::info!("2: {:#?}", db.locked_accounts);
             } else if let Some(get_this_hash_tx) = message.frontend_get_tx {
                 log::info!("Getting tx for frontend");
                 let req_tx = db.transactions.get(&get_this_hash_tx).unwrap();
@@ -69,26 +101,24 @@ impl RollupDB {
             } else if let Some(tx) = message.add_processed_transaction {
 
                 let processed_data = message.add_new_data.unwrap();
-                log::info!("Adding processed tx");
+
                 // unlocking accounts
                 let locked_keys = tx.message.account_keys.clone(); // get the keys
+                log::info!("it is starting accounts_db{:#?}", db.accounts_db);
+                log::info!("it is starting locked_db{:#?}", db.locked_accounts);
+                for (pubkey, data) in processed_data.iter() {
+                    db.locked_accounts.remove(pubkey).unwrap();
+                    db.accounts_db.insert(*pubkey, data.clone());
+                    log::info!("it is final accounts_db{:#?}", db.accounts_db);
+                    log::info!("it is final locked_db{:#?}", db.locked_accounts);
+                    
 
-                // locked_keys.iter().for_each(
-                //     |pubkey| if db.locked_accounts.contains_key(&pubkey) {
-                //         db.locked_accounts.remove(&pubkey);
-                //     }
-                // );
-
-                for pubkey in locked_keys {
-                    if let Some(account) = db.locked_accounts.remove(&pubkey) {
-                        db.accounts_db.insert(pubkey, account); // Unlock and restore
-                    }
                 }
                 // send transaction to the db.transactions
 
                 db.transactions.insert(tx.message.hash(), tx.clone());
                 log::info!("locked: {:#?}", db.locked_accounts);
-                log::info!("43210: {:#?}", db.accounts_db);                log::info!("PROCESSED TX: {}", db.transactions.len());
+                log::info!("43210: {:#?}", db.accounts_db);
 
                 // communication channel with database 
                 // communcation with the frontend 
@@ -122,6 +152,7 @@ impl RollupDB {
             //         account_sender.send(None).await.unwrap();
             //     }
             }
+
         }
     }
 }

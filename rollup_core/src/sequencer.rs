@@ -206,6 +206,7 @@ pub async fn run( // async
 
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
+            log::info!("Start bundling!");
             //bundle transfer tx test
             rollupdb_sender.send(RollupDBMessage {
                 lock_accounts: None,
