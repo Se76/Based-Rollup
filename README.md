@@ -20,3 +20,46 @@ Rollups can enhance Solana by:
 6. **Bundles Similar Transactions:** Groups similar transactions into one.
 7. **Batch(10) Bundling:** After 10 transactions, bundles them into a single transaction.
 8. **Settles Changes to the Chain:** Commits batched changes back to Solana.
+
+## Module Overview
+
+**frontend.rs**  
+  Actix Web
+  - A submission endpoint (`/submit_transaction`) that accepts and forwards transactions to the sequencer.
+  - A query endpoint (`/get_transaction`) that retrieves processed transactions from the rollup database.
+  - A test endpoint to verify server functionality.
+
+- **loader.rs**  
+  Implements the account loader for the rollup. This module:
+  - Fetches account data from Solana using RPC client.
+  - Caches account data locally.
+  - Implements the `TransactionProcessingCallback` required by SVM API
+    
+- **main.rs**  
+  Entry point for the application. It:
+  - Sets up communication channels, using crossbeam and async channels.
+  - Creates threads for the sequencer and rollup database.
+  - Runs the Actix server, tying all modules together.
+
+- **processor.rs**  
+  Provides helper functions to configure and initialize the SVM API’s transaction batch processor. 
+It:
+  - Implements a fork graph (required by the processor).
+  - Sets up the processor’s program cache with built-in programs (system and BPF loader).
+
+- **rollupdb.rs**  
+  Implements an in-memory database that manages:
+  - Account states and locked accounts.
+  - Processed transactions.
+  - Communication with the frontend by retrieving transactions based on requests.  
+  It handles locking and unlocking accounts as transactions are processed.
+
+- **sequencer.rs**  
+  Acts as the transaction sequencer and processor. It:
+  - Receives transactions via a crossbeam channel.
+  - Locks accounts for parallel execution.
+  - Uses Solana’s SVM API to process and validate transactions.
+  - Batches transactions (every 10 transactions) and settles when the threshold is reached.
+
+- **settle.rs**  
+  Contains the functionality to settle state changes on Solana. Creates and sends a proof transaction via Solana’s RPC, comitting updates to SVM.
