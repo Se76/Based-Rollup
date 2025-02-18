@@ -13,7 +13,7 @@ Rollups can enhance Solana by:
 
 ## Currently building:
 - **Support for SPL tokens**
-- **Bundling between 3+ accounts**
+- **Support for all types of transactions**
 
 ## Flow
 1. **Fetches Transactions** 
