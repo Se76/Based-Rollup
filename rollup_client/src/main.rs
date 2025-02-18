@@ -28,8 +28,8 @@ pub struct GetTransaction {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let keypair = signer::keypair::read_keypair_file("/Users/nicknut/Desktop/Q1_SVM/Rollup_SVM_Q1/Basic_Rollup_fork/rollup_client/mykey_1.json").unwrap();
-    let keypair2 = signer::keypair::read_keypair_file("/Users/nicknut/Desktop/Q1_SVM/Rollup_SVM_Q1/Basic_Rollup_fork/rollup_client/testkey.json").unwrap();
+    let keypair = signer::keypair::read_keypair_file("/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/mykey_1.json").unwrap();
+    let keypair2 = signer::keypair::read_keypair_file("/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/testkey.json").unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
     let ix =
