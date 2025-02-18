@@ -26,6 +26,7 @@ use crate::{rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
 use crate::errors::RollupErrors;
+use crate::bundler::*;
 
 pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
@@ -75,6 +76,7 @@ pub async fn run( // async
                 add_processed_transaction: None,
                 get_account: None,
                 // response: Some(true), 
+                bundle_tx: false
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
@@ -178,62 +180,41 @@ pub async fn run( // async
         rollupdb_sender
             .send(RollupDBMessage {
                 lock_accounts: None,
-                add_processed_transaction: Some(transaction),
+                add_processed_transaction: Some(transaction.clone()),
                 add_new_data: Some(first_index_data),
                 frontend_get_tx: None,
                 add_settle_proof: None,
                 get_account: None,
+                bundle_tx: false
             })
             
             .unwrap();
 
+        //View sent processed tx details
+        let ixs = get_transaction_instructions(&transaction);
+        let acc_keys: &[Pubkey] = &transaction.message.account_keys;
+        if let Some((from, to, amount)) = TransferBundler::parse_compiled_instruction(&ixs[0], acc_keys) {
+                log::info!("
+                    Transaction Info\n
+                    From: {from:?}\n
+                    To: {to:?}\n
+                    Amount: {amount}
+
+                ")
+            }
+
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
-            tx_counter = 0u32;
-        }
-    }
-    Ok(())
-}
-// let accounts_data = transaction // adding reference
-        //     .message
-        //     .account_keys
-        //     .iter()
-        //     .filter_map(|pubkey| {
-        //         rollupdb_sender.send(RollupDBMessage {
-        //             lock_accounts: None,
-        //             frontend_get_tx: None,
-        //             add_settle_proof: None,
-        //             add_new_data: None,
-        //             add_processed_transaction: None,
-        //             get_account: Some(*pubkey),
-        //             // response: Some(true)
-        //         })
-        //         .map_err(|_| anyhow!("failed to send message to rollupdb")).unwrap();
-        //     // rx.await.map_err(|_| anyhow!("failed to receive response"))?;
-        //         if let Ok(Some(account_data)) = account_reciever.try_recv() {
-        //             // If the pubkey exists in accounts_db, return the stored value
-        //             log::info!("account was recieved");
-        //             log::info!("account was recieved, its data: {:?}", account_data);
-        //             Some((pubkey.clone(), account_data.clone()))
-        //         } else {
-        //             log::info!("account was copied from rpc");
-        //             log::info!("account was copied from rpc, its data: {:?}", rpc_client_temp.get_account(pubkey).unwrap());
-        //             // Otherwise, fetch from rpc_client_temp
-        //             // log::info!("Fetching account from rpc_client_temp");
-        //             // log::info!("{:?}", pubkey);
-        //             match rpc_client_temp.get_account(pubkey) {
-        //                 Ok(account) => Some((pubkey.clone(), account.into())),
-        //                 Err(_) => None, // If the fetch fails, filter it out // SHOULD RETURN A CUSTOM ERROR
-        //             }
-        //         }
-        //     })
-        //     .collect::<Vec<(Pubkey, AccountSharedData)>>();
-        // log::info!("accounts_data: {:?}", &accounts_data);
+            //bundle transfer tx test
+            rollupdb_sender.send(RollupDBMessage {
+                lock_accounts: None,
+                add_processed_transaction: None,
+                add_settle_proof: None,
+                frontend_get_tx: None,
+                bundle_tx: true
+            }).unwrap();
 
-
-            // CREATE A PROOF FOR THE CHANGES STATE
-
-// Lock db to avoid state changes during settlement
+            // Lock db to avoid state changes during settlement
 
             // Prepare root hash, or your own proof to send to chain
 

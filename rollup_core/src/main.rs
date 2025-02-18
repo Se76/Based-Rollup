@@ -15,6 +15,7 @@ mod sequencer;
 mod settle;
 mod processor;
 mod loader;
+mod bundler;
 mod errors;
 
 // #[actix_web::main]
