@@ -53,30 +53,35 @@ pub async fn submit_transaction(
 
 pub async fn get_transaction(
     body: web::Json<GetTransaction>,
-    sequencer_sender: web::Data<Sender<Transaction>>,
+    // sequencer_sender: web::Data<Sender<Transaction>>,
     rollupdb_sender: web::Data<Sender<RollupDBMessage>>,
     frontend_receiver: web::Data<Receiver<FrontendMessage>>,
 ) -> actix_web::Result<HttpResponse> {
     // Validate transaction structure with serialization in function signature
+    println!("Getting tx...");
     log::info!("Requested transaction");
     log::info!("{body:?}");
 
     rollupdb_sender
         .send(RollupDBMessage {
             lock_accounts: None,
+            add_new_data: None,
             add_processed_transaction: None,
             frontend_get_tx: Some(Hash::new(body.get_tx.as_bytes())),
             add_settle_proof: None,
+            get_account: None,
+            bundle_tx: false
         })
         .await
         .unwrap();
 
     if let Ok(frontend_message) = frontend_receiver.recv().await {
-        return Ok(HttpResponse::Ok().json(RollupTransaction {
-            sender: "Rollup RPC".into(),
-            sol_transaction: frontend_message.transaction.unwrap(),
-        }));
-        // Ok(HttpResponse::Ok().json(HashMap::from([("Transaction status", "requested")])))
+        // return Ok(HttpResponse::Ok().json(RollupTransaction {
+        //     sender: "Rollup RPC".into(),
+        //     sol_transaction: frontend_message.transaction.unwrap(),
+        // }));
+        log::info!("Requested TX:\n {:?}", frontend_message.transaction.unwrap());
+        return Ok(HttpResponse::Ok().json(HashMap::from([("Requested transaction status", "gotten successfully")])));
     }
 
     Ok(HttpResponse::Ok().json(HashMap::from([("Transaction status", "requested")])))

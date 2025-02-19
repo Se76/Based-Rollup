@@ -1,11 +1,10 @@
 use core::panic;
 use std::{
-    collections::{HashMap, HashSet},
-    sync::{Arc, RwLock},
+    collections::{HashMap, HashSet}, sync::{Arc, RwLock}, time, vec
 };
 
 use anyhow::{anyhow, Result};
-use async_channel::Sender;
+use async_channel::{Sender, Receiver};
 use crossbeam::channel::{Sender as CBSender, Receiver as CBReceiver};
 use solana_client::{nonblocking::rpc_client as nonblocking_rpc_client, rpc_client::RpcClient};
 use solana_compute_budget::compute_budget::ComputeBudget;
@@ -20,23 +19,53 @@ use solana_sdk::{
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
-    message_processor::MessageProcessor,
-    program_loader::load_program_with_pubkey,
-    transaction_processing_callback::TransactionProcessingCallback,
-    transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment},
+    message_processor::MessageProcessor, program_loader::load_program_with_pubkey, transaction_processing_callback::TransactionProcessingCallback, transaction_processing_result::ProcessedTransaction, transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment}
 };
-
+use tokio::time::{sleep, Duration};
 use crate::{rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
+use crate::errors::RollupErrors;
+use crate::bundler::*;
 
-pub fn run(
-    sequencer_receiver_channel: CBReceiver<Transaction>,
-    rollupdb_sender: CBSender<RollupDBMessage>,
+pub async fn run( // async
+    sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
+    rollupdb_sender: CBSender<RollupDBMessage>, // CBSender
+    account_reciever: Receiver<Option<Vec<(Pubkey, AccountSharedData)>>>,
+    receiver_locked_accounts: Receiver<bool>,
+    // rx: tokio::sync::oneshot::Receiver<std::option::Option<bool>>  // sync_ver_sender
 ) -> Result<()> {
+    // let (tx, rx) = oneshot::channel(); // Create a channel to wait for response
+
     let mut tx_counter = 0u32;
+
+    let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
+
+    let mut rollup_account_loader = RollupAccountLoader::new(
+        &rpc_client_temp,
+    );
     while let transaction = sequencer_receiver_channel.recv().unwrap() {
         let accounts_to_lock = transaction.message.account_keys.clone();
+        for pubkey in accounts_to_lock.iter() {
+            loop {
+                rollupdb_sender
+                .send(RollupDBMessage {
+                    lock_accounts: None,
+                    frontend_get_tx: None,
+                    add_settle_proof: None,
+                    add_new_data: None,
+                    add_processed_transaction: None,
+                    get_account: Some(*pubkey),
+                    bundle_tx: false
+            })
+            
+            .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
+                if receiver_locked_accounts.recv().await.unwrap() == false {
+                    break;
+                }
+                sleep(Duration::from_millis(500)).await;
+            }
+        }
         tx_counter += 1;
         // lock accounts in rollupdb to keep paralell execution possible, just like on solana
         rollupdb_sender
@@ -44,54 +73,35 @@ pub fn run(
                 lock_accounts: Some(accounts_to_lock),
                 frontend_get_tx: None,
                 add_settle_proof: None,
+                add_new_data: None,
                 add_processed_transaction: None,
+                get_account: None,
+                // response: Some(true), 
+                bundle_tx: false
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
 
-        // Verify ransaction signatures, integrity
-
-        // Process transaction
+        if let Some(vec_of_accounts_data) = account_reciever.recv().await.unwrap() {
+            log::info!("received::: {:?}", vec_of_accounts_data);
+            for (pubkey, account) in vec_of_accounts_data.iter() {
+                rollup_account_loader.add_account(*pubkey, account.clone());
+                log::info!("sucess:")
+            }
+        }
+        for pubkey in transaction.message.account_keys.iter(){
+            let data = rollup_account_loader.get_account_shared_data(pubkey);
+            log::info!("data from an account: {:?}", data);
+        }
 
         let compute_budget = ComputeBudget::default();
         let feature_set = FeatureSet::all_enabled();
-        let fee_structure = FeeStructure::default();
+        let mut fee_structure = FeeStructure::default();
+        fee_structure.lamports_per_signature = 0;
         let lamports_per_signature = fee_structure.lamports_per_signature;
         let rent_collector = RentCollector::default();
         let mut timings = ExecuteTimings::default();
         let fork_graph = Arc::new(RwLock::new(RollupForkGraph {}));
-
-
-        
-        // let rent_collector = RentCollector::default();
-
-        // Solana runtime.
-        // let fork_graph = Arc::new(RwLock::new(SequencerForkGraph {}));
-
-        // // create transaction processor, add accounts and programs, builtins,
-        // let processor = TransactionBatchProcessor::<SequencerForkGraph>::default();
-
-        // let mut cache = processor.program_cache.write().unwrap();
-
-        // // Initialize the mocked fork graph.
-        // // let fork_graph = Arc::new(RwLock::new(PayTubeForkGraph {}));
-        // cache.fork_graph = Some(Arc::downgrade(&fork_graph));
-
-        // let rent = Rent::default();
-
-        let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
-
-        let accounts_data = transaction // adding reference
-            .message
-            .account_keys
-            .iter()
-            .map(|pubkey| {
-                (
-                    pubkey.clone(),
-                    rpc_client_temp.get_account(pubkey).unwrap().into(),
-                )
-            })
-            .collect::<Vec<(Pubkey, AccountSharedData)>>();
 
         let mut used_cu = 0u64;
         let sanitized = SanitizedTransaction::try_from_legacy_transaction( // to check here for the problem
@@ -101,22 +111,12 @@ pub fn run(
 
         log::info!("{:?}", sanitized.clone());
 
-        let needed_programs: Vec<(Pubkey, AccountSharedData)> = 
-        accounts_data
-        .iter()
-        .filter(|(pubkey, account)| account.executable())
-        .map(|(pubkey, account)| (pubkey.clone(), account.clone()))
-        .collect();
-
-        log::info!("accounts_data: {needed_programs:?}");
-
-        let mut rollup_account_loader = RollupAccountLoader::new(
-            &rpc_client_temp,
-        );
-
-        for (pubkey, account) in needed_programs.iter() {
-            rollup_account_loader.add_account(*pubkey, account.clone());
-        }
+        // let needed_programs: Vec<(Pubkey, AccountSharedData)> = 
+        // accounts_data
+        // .iter()
+        // .filter(|(pubkey, account)| account.executable())
+        // .map(|(pubkey, account)| (pubkey.clone(), account.clone()))
+        // .collect();
 
 
         let processor = create_transaction_batch_processor(
@@ -144,8 +144,6 @@ pub fn run(
             ..Default::default()
         };
 
-
-
         let status = processor.load_and_execute_sanitized_transactions(
             &rollup_account_loader, 
             sanitized_transaction, 
@@ -154,20 +152,76 @@ pub fn run(
             &processing_config
         );
         log::info!("{:#?}", status.processing_results);
-        
+        log::info!("error_metrics: {:#?}", status.error_metrics);
+
+        let data_new = 
+        status
+        .processing_results
+        .iter()
+        .map(|res| {
+            println!("Executed transaction:");
+            log::info!("Executed transaction");
+            let enum_one = res.as_ref().unwrap();
+    
+            match enum_one {
+                ProcessedTransaction::Executed(tx) => {
+                    println!("Executed transaction: {:?}", tx.loaded_transaction.accounts);
+                    Some(tx.loaded_transaction.accounts.clone()) 
+                }
+                ProcessedTransaction::FeesOnly(tx) => {
+                    println!("Fees-only transaction: {:?}", tx);
+                    None 
+                }
+            }
+        }).collect::<Vec<Option<Vec<(Pubkey, AccountSharedData)>>>>();
+
+        let first_index_data = data_new[0].as_ref().unwrap().clone();
+        log::info!("swq {:?}", first_index_data);
              // Send processed transaction to db for storage and availability
         rollupdb_sender
             .send(RollupDBMessage {
                 lock_accounts: None,
-                add_processed_transaction: Some(transaction),
+                add_processed_transaction: Some(transaction.clone()),
+                add_new_data: Some(first_index_data),
                 frontend_get_tx: None,
                 add_settle_proof: None,
+                get_account: None,
+                bundle_tx: false
             })
             
             .unwrap();
 
+        //View sent processed tx details
+        let ixs = get_transaction_instructions(&transaction);
+        let acc_keys: &[Pubkey] = &transaction.message.account_keys;
+        if let Some((from, to, amount)) = TransferBundler::parse_compiled_instruction(&ixs[0], acc_keys) {
+                log::info!("
+                    Transaction Info\n
+                    From: {from:?}\n
+                    To: {to:?}\n
+                    Amount: {amount}
+
+                ")
+            }
+
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
+            log::info!("Start bundling!");
+            //bundle transfer tx test
+            rollupdb_sender.send(RollupDBMessage {
+                lock_accounts: None,
+                add_processed_transaction: None,
+                add_settle_proof: None,
+                get_account: None, 
+                add_new_data: None,
+                frontend_get_tx: None,
+                bundle_tx: true
+            }).unwrap();
+        }
+    }
+    Ok(())
+}
+
             // Lock db to avoid state changes during settlement
 
             // Prepare root hash, or your own proof to send to chain
@@ -175,17 +229,35 @@ pub fn run(
             // Send proof to chain
 
             // let _settle_tx_hash = settle_state("proof".into()).await?;
-            tx_counter = 0u32;
+        // .map(|pubkey| {
+        //     (
+        //         pubkey.clone(),
+        //         rpc_client_temp.get_account(pubkey).unwrap().into(),
+        //     )
+        // })
 
 
-            // CREATE A PROOF FOR THE CHANGES STATE
-        }
-    }
+// log::info!("accounts_data: {needed_programs:?}");
 
-    Ok(())
-}
+        // for (pubkey, account) in needed_programs.iter() {
+        //     rollup_account_loader.add_account(*pubkey, account.clone());
+        // }
 
+// let rent_collector = RentCollector::default();
 
+        // Solana runtime.
+        // let fork_graph = Arc::new(RwLock::new(SequencerForkGraph {}));
+
+        // // create transaction processor, add accounts and programs, builtins,
+        // let processor = TransactionBatchProcessor::<SequencerForkGraph>::default();
+
+        // let mut cache = processor.program_cache.write().unwrap();
+
+        // // Initialize the mocked fork graph.
+        // // let fork_graph = Arc::new(RwLock::new(PayTubeForkGraph {}));
+        // cache.fork_graph = Some(Arc::downgrade(&fork_graph));
+
+        // let rent = Rent::default();
 
 
  
