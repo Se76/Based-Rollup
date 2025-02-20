@@ -29,9 +29,9 @@ pub struct GetTransaction {
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let path = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/mykey_1.json";
-    let path2 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/testkey.json";
-    let path3 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/owner.json";
+    let path = "/Users/nicknut/Desktop/Q1_SVM/Basic_Rollup_fork/rollup_client/mykey_1.json";
+    let path2 = "/Users/nicknut/Desktop/Q1_SVM/Basic_Rollup_fork/rollup_client/testkey.json";
+    let path3 = "/Users/nicknut/Desktop/Q1_SVM/Basic_Rollup_fork/rollup_client/owner.json";
     let keypair = signer::keypair::read_keypair_file(path.to_string()).unwrap();
     let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
