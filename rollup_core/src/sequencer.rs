@@ -15,7 +15,7 @@ use solana_program_runtime::{
 
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_sdk::{
-    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, instruction, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, sysvar::instructions, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext},
+    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, instruction, program_pack::Pack, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, sysvar::instructions, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext}
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
@@ -27,6 +27,8 @@ use crate::loader::RollupAccountLoader;
 use crate::processor::*;
 use crate::errors::RollupErrors;
 use crate::bundler::*;
+
+use spl_token::state::Account;
 
 pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
@@ -40,6 +42,8 @@ pub async fn run( // async
     let mut tx_counter = 0u32;
 
     let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
+
+    // rpc_client_temp.get_token_accounts_by_owner(owner, token_account_filter)
 
     let mut rollup_account_loader = RollupAccountLoader::new(
         &rpc_client_temp,
@@ -67,6 +71,7 @@ pub async fn run( // async
             }
         }
         tx_counter += 1;
+        
         // lock accounts in rollupdb to keep paralell execution possible, just like on solana
         rollupdb_sender
             .send(RollupDBMessage {
@@ -206,17 +211,18 @@ pub async fn run( // async
 
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
-            log::info!("Start bundling!");
-            //bundle transfer tx test
-            rollupdb_sender.send(RollupDBMessage {
-                lock_accounts: None,
-                add_processed_transaction: None,
-                add_settle_proof: None,
-                get_account: None, 
-                add_new_data: None,
-                frontend_get_tx: None,
-                bundle_tx: true
-            }).unwrap();
+            // log::info!("Start bundling!");
+            // //bundle transfer tx test
+            // rollupdb_sender.send(RollupDBMessage {
+            //     lock_accounts: None,
+            //     add_processed_transaction: None,
+            //     add_settle_proof: None,
+            //     get_account: None, 
+            //     add_new_data: None,
+            //     frontend_get_tx: None,
+            //     bundle_tx: true
+            // }).unwrap();
+            tx_counter = 0u32;
         }
     }
     Ok(())

@@ -2,7 +2,7 @@ use async_channel::{Receiver, Sender};
 use log::log;
 use serde::{Deserialize, Serialize};
 use solana_sdk::{
-    account::AccountSharedData, hash::Hash, pubkey::Pubkey, transaction::Transaction, // keccak::Hash -> hash::Hash
+    account::{AccountSharedData, ReadableAccount}, hash::Hash, program_pack::Pack, pubkey::Pubkey, transaction::Transaction // keccak::Hash -> hash::Hash
 };
 
 use crossbeam::channel::{Receiver as CBReceiver, Sender as CBSender};
@@ -15,6 +15,7 @@ use solana_client::rpc_client::{RpcClient};
 
 use crate::frontend::FrontendMessage;
 use crate::bundler::*;
+use spl_token::state::Account;
 
 #[derive(Serialize, Deserialize)]
 pub struct RollupDBMessage {
@@ -80,11 +81,14 @@ impl RollupDB {
                     }
 
                 }
-                log::info!("locking done: {:?}", db.accounts_db);
-                log::info!("locked accounts done: {:?}", db.locked_accounts);
-
+                // log::info!("locking done: {:?}", db.accounts_db);
+                // log::info!("locked accounts done: {:?}", db.locked_accounts);
+                for (pubkey, data) in information_to_send.iter() {
+                    let res = Account::unpack(data.data().as_ref());
+                    log::info!("result for unpacking accounts: {:?}", res)
+                }
                 
-                log::info!("information to send -> {:?}", information_to_send);
+                // log::info!("information to send -> {:?}", information_to_send);
                 account_sender.send(Some(information_to_send)).await.unwrap();
                 // log::info!("2: {:#?}", db.locked_accounts);
             } else if let Some(get_this_hash_tx) = message.frontend_get_tx {
@@ -140,6 +144,9 @@ impl RollupDB {
             else if let Some(pubkey) = message.get_account {
                 if db.locked_accounts.contains_key(&pubkey) {
                     sender_locked_accounts.send(true).await.unwrap();
+
+                    // Account::unpack(input)
+
                 } else {
                     sender_locked_accounts.send(false).await.unwrap();
                 }

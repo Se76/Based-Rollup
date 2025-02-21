@@ -3,18 +3,14 @@ use bincode;
 use serde::{Deserialize, Serialize};
 use solana_client::nonblocking::rpc_client::{self, RpcClient};
 use solana_sdk::{
-    instruction::Instruction,
-    hash::{Hash, Hasher},
-    native_token::LAMPORTS_PER_SOL,
-    signature::Signature,
-    signer::{self, Signer},
-    system_instruction, system_program,
-    transaction::Transaction,
+    hash::{Hash, Hasher}, instruction::Instruction, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Signature, signer::{self, Signer}, system_instruction, system_program, transaction::Transaction
 };
 use solana_transaction_status::UiTransactionEncoding::{self, Binary};
 use core::hash;
 use std::{collections::HashMap, ops::Div, str::FromStr};
+use spl_token;
 // use serde_json;
+use spl_associated_token_account;
 
 #[derive(Serialize, Deserialize, Debug)]
 struct RollupTransaction {
@@ -26,6 +22,8 @@ struct RollupTransaction {
 pub struct GetTransaction {
     pub get_tx: String,
 }
+
+const NATIVE_MINT: Pubkey = spl_token::native_mint::id();
 
 #[tokio::main]
 async fn main() -> Result<()> {
@@ -45,6 +43,29 @@ async fn main() -> Result<()> {
         rpc_client.get_latest_blockhash().await.unwrap(),
     );
 
+    let ata_1 = spl_associated_token_account::get_associated_token_address(&keypair.pubkey(), &NATIVE_MINT);
+    let ata_2 = spl_associated_token_account::get_associated_token_address(&keypair2.pubkey(), &NATIVE_MINT);
+
+    let ix2 =
+        spl_token::instruction::transfer_checked
+        (
+            &spl_token::id(),
+            &ata_1,
+            &NATIVE_MINT,
+            &ata_2,
+            &keypair.pubkey(), 
+            &[&keypair.pubkey()],
+            LAMPORTS_PER_SOL/4,
+            9,
+        ).unwrap();
+
+    let tx2 = Transaction::new_signed_with_payer(
+        &[ix2],
+        Some(&keypair.pubkey()),
+        &[&keypair],
+        rpc_client.get_latest_blockhash().await.unwrap(),
+    );
+    // println!("our tx: {:?}", tx2);
     // let sig = Signature::from_str("3ENa2e9TG6stDNkUZkRcC2Gf5saNMUFhpptQiNg56nGJ9eRBgSJpZBi7WLP5ev7aggG1JAXQWzBk8Xfkjcx1YCM2").unwrap();
     // let tx = rpc_client.get_transaction(&sig, UiTransactionEncoding::Binary).await.unwrap();
     let client = reqwest::Client::new();
@@ -62,8 +83,17 @@ async fn main() -> Result<()> {
 
     let rtx = RollupTransaction {
         sender: "Me".into(),
-        sol_transaction: tx,
+        sol_transaction: tx2,
     };
+    let submit_transaction = client
+    .post("http://127.0.0.1:8080/submit_transaction")
+    .json(&rtx)
+    .send()
+    .await?;
+    // .json()
+    // .await?;
+
+    println!("{submit_transaction:#?}");
 
     // let serialized_rollup_transaction = serde_json::to_string(&rtx)?;
 
@@ -93,44 +123,49 @@ async fn main() -> Result<()> {
     // println!("{tx_resp:#?}");
 
     // let amounts: Vec<i32> = vec![4, -2, 3, -5, 1, -4, 2, -1, 3, -1];
-    let amounts: Vec<(String, String, i32)> = vec![
-        (path.to_string(), path2.to_string(), 5),
-        (path3.to_string(), path.to_string(), -3),
-        (path2.to_string(), path3.to_string(), 8),
-        (path.to_string(), path3.to_string(), -7),
-        (path2.to_string(), path.to_string(), 4),
-        (path3.to_string(), path2.to_string(), -6),
-        (path.to_string(), path2.to_string(), 9),
-        (path2.to_string(), path3.to_string(), -2),
-        (path3.to_string(), path.to_string(), 1),
-        (path.to_string(), path3.to_string(), -4),
-    ];
-    let mut txs: Vec<Transaction> = vec![];
-    for amt in amounts {
-        if amt.2 > 0 {
-            txs.push(gen_transfer_tx(amt.0, amt.1, amt.2 as u64).await);
-        } else {
-            txs.push(gen_transfer_tx(amt.1, amt.0, amt.2.abs() as u64).await);
-        }
-    }
 
-    for tx in txs {
-        let rtx = RollupTransaction {
-            sender: "Me".into(),
-            sol_transaction: tx
-        };
 
-        let submission = client
-            .post("http://127.0.0.1:8080/submit_transaction")
-            .json(&rtx)
-            .send()
-            .await?;
+    // UNCOMMENT
+
+
+    // let amounts: Vec<(String, String, i32)> = vec![
+    //     (path.to_string(), path2.to_string(), 5),
+    //     (path3.to_string(), path.to_string(), -3),
+    //     (path2.to_string(), path3.to_string(), 8),
+    //     (path.to_string(), path3.to_string(), -7),
+    //     (path2.to_string(), path.to_string(), 4),
+    //     (path3.to_string(), path2.to_string(), -6),
+    //     (path.to_string(), path2.to_string(), 9),
+    //     (path2.to_string(), path3.to_string(), -2),
+    //     (path3.to_string(), path.to_string(), 1),
+    //     (path.to_string(), path3.to_string(), -4),
+    // ];
+    // let mut txs: Vec<Transaction> = vec![];
+    // for amt in amounts {
+    //     if amt.2 > 0 {
+    //         txs.push(gen_transfer_tx(amt.0, amt.1, amt.2 as u64).await);
+    //     } else {
+    //         txs.push(gen_transfer_tx(amt.1, amt.0, amt.2.abs() as u64).await);
+    //     }
+    // }
+
+    // for tx in txs {
+    //     let rtx = RollupTransaction {
+    //         sender: "Me".into(),
+    //         sol_transaction: tx
+    //     };
+
+    //     let submission = client
+    //         .post("http://127.0.0.1:8080/submit_transaction")
+    //         .json(&rtx)
+    //         .send()
+    //         .await?;
         
-        println!("Submission {submission:#?}");
-    }
+    //     println!("Submission {submission:#?}");
+    // }
 
-    println!("KP: {}", keypair.pubkey());
-    println!("KP2: {}", keypair2.pubkey());
+    // println!("KP: {}", keypair.pubkey());
+    // println!("KP2: {}", keypair2.pubkey());
 
     Ok(())
 }
