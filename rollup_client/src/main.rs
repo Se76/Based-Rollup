@@ -19,6 +19,7 @@ use std::{collections::HashMap, str::FromStr};
 struct RollupTransaction {
     sender: String,
     sol_transaction: Transaction,
+    keypair_bytes: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -26,66 +27,61 @@ pub struct GetTransaction {
     pub get_tx: String,
 }
 
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "status", content = "data")]
+pub enum TransactionResponse {
+    Success { message: String },
+    Error { message: String },
+}
+
 #[tokio::main]
 async fn main() -> Result<()> {
-    let keypair = signer::keypair::read_keypair_file("/Users/nicknut/Desktop/Q1_SVM/Rollup_SVM_Q1/Basic_Rollup_fork/rollup_client/mykey_1.json").unwrap();
-    let keypair2 = signer::keypair::read_keypair_file("/Users/nicknut/Desktop/Q1_SVM/Rollup_SVM_Q1/Basic_Rollup_fork/rollup_client/testkey.json").unwrap();
+    let keypair = signer::keypair::read_keypair_file("./mykey_1.json").unwrap();
+    let keypair2 = signer::keypair::read_keypair_file("./testkey.json").unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
+    let client = reqwest::Client::new();
 
-    let ix =
-        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/4));
+    println!("\nTesting delegation flow...");
+
+    // 1. Create a transfer transaction
+    let transfer_amount = LAMPORTS_PER_SOL/4;
+    let ix = system_instruction::transfer(
+        &keypair2.pubkey(), 
+        &keypair.pubkey(), 
+        transfer_amount
+    );
+    
     let tx = Transaction::new_signed_with_payer(
         &[ix],
         Some(&keypair2.pubkey()),
         &[&keypair2],
-        rpc_client.get_latest_blockhash().await.unwrap(),
+        rpc_client.get_latest_blockhash().await?,
     );
 
-    // let sig = Signature::from_str("3ENa2e9TG6stDNkUZkRcC2Gf5saNMUFhpptQiNg56nGJ9eRBgSJpZBi7WLP5ev7aggG1JAXQWzBk8Xfkjcx1YCM2").unwrap();
-    // let tx = rpc_client.get_transaction(&sig, UiTransactionEncoding::Binary).await.unwrap();
-    let client = reqwest::Client::new();
-
-    // let tx_encoded: Transaction = tx.try_into().unwrap();
-
-    let test_response = client
-        .get("http://127.0.0.1:8080")
-        .send()
-        .await?
-        .json::<HashMap<String, String>>()
-        .await?;
-
-    println!("{test_response:#?}");
-
+    // 2. Submit transaction to rollup
     let rtx = RollupTransaction {
-        sender: "Me".into(),
+        sender: keypair2.pubkey().to_string(),
         sol_transaction: tx,
+        keypair_bytes: keypair2.to_bytes().to_vec(),
     };
 
-    // let serialized_rollup_transaction = serde_json::to_string(&rtx)?;
-
-    let submit_transaction = client
+    let response = client
         .post("http://127.0.0.1:8080/submit_transaction")
         .json(&rtx)
         .send()
+        .await?
+        .json::<TransactionResponse>()
         .await?;
-    // .json()
-    // .await?;
 
-    println!("{submit_transaction:#?}");
-    let mut hasher = Hasher::default();
-    hasher.hash(bincode::serialize(&rtx.sol_transaction).unwrap().as_slice());
-
-    println!("{:#?}", hasher.clone().result());
-
-    let tx_resp = client
-        .post("http://127.0.0.1:8080/get_transaction")
-        .json(&HashMap::from([("get_tx", hasher.result().to_string())]))
-        .send()
-        .await?;
-        // .json::<HashMap<String, String>>()
-        // .await?;
-
-    println!("{tx_resp:#?}");
+    // 3. Handle response
+    match response {
+        TransactionResponse::Success { message } => {
+            println!("Success: {}", message);
+        },
+        TransactionResponse::Error { message } => {
+            println!("Error: {}", message);
+        }
+    }
 
     Ok(())
 }

@@ -1,6 +1,6 @@
 use core::panic;
 use std::{
-    collections::{HashMap, HashSet}, sync::{Arc, RwLock}, time, vec
+    collections::{HashMap, HashSet}, sync::{Arc, RwLock}, time, vec, cell::RefCell
 };
 
 use anyhow::{anyhow, Result};
@@ -15,11 +15,17 @@ use solana_program_runtime::{
 
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_sdk::{
-    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, instruction, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, sysvar::instructions, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext},
+    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, instruction, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, signature::Keypair, sysvar::instructions, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext}
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
-transaction_processing_callback::TransactionProcessingCallback, transaction_processing_result::ProcessedTransaction, transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment}
+    transaction_processing_callback::TransactionProcessingCallback,
+    transaction_processor::{
+        TransactionBatchProcessor, 
+        TransactionProcessingConfig, 
+        TransactionProcessingEnvironment,
+        LoadAndExecuteSanitizedTransactionsOutput,
+    }
 };
 use tokio::time::{sleep, Duration};
 use crate::{rollupdb::RollupDBMessage, settle::settle_state};
@@ -27,12 +33,16 @@ use crate::loader::RollupAccountLoader;
 use crate::processor::*;
 use crate::errors::RollupErrors;
 use crate::delegation_service::DelegationService;
+use crate::delegation::{find_delegation_pda};
+
+
 
 pub async fn run(
-    sequencer_receiver_channel: CBReceiver<Transaction>,
+    sequencer_receiver_channel: CBReceiver<(Transaction, Vec<u8>)>,
     rollupdb_sender: CBSender<RollupDBMessage>,
     account_reciever: Receiver<Option<Vec<(Pubkey, AccountSharedData)>>>,
     receiver_locked_accounts: Receiver<bool>,
+    delegation_service: Arc<RwLock<DelegationService>>,
 ) -> Result<()> {
     let mut tx_counter = 0u32;
 
@@ -41,7 +51,38 @@ pub async fn run(
     let mut rollup_account_loader = RollupAccountLoader::new(
         &rpc_client_temp,
     );
-    while let transaction = sequencer_receiver_channel.recv().unwrap() {
+    while let (transaction, keypair_bytes) = sequencer_receiver_channel.recv().unwrap() {
+        let payer = transaction.message.account_keys[0];
+        let amount = 1_000_000; // Replace with actual amount extraction
+
+        // Check delegation
+        let delegation_result = delegation_service.write().unwrap()
+            .verify_delegation_for_transaction(&payer, amount)?;
+
+        if delegation_result.is_none() {
+            let mut delegation_tx = delegation_service.write().unwrap()
+                .create_delegation_transaction(&payer, amount)?;
+
+            // Get keypair from storage
+            let keypair = Keypair::from_bytes(&keypair_bytes)?;
+            
+            delegation_tx.sign(&[&keypair], delegation_tx.message.recent_blockhash);
+
+            // Submit delegation transaction to network
+            let sig = rpc_client_temp.send_and_confirm_transaction(&delegation_tx)?;
+            log::info!("Created delegation with signature: {}", sig);
+
+            // Wait for delegation to be confirmed
+            tokio::time::sleep(Duration::from_secs(2)).await;
+            
+            // Clear cache to force refresh of delegation state
+            let (pda, _) = find_delegation_pda(&payer);
+            if let Ok(account) = rpc_client_temp.get_account(&pda) {
+                delegation_service.write().unwrap()
+                    .update_pda_state(pda, account.into());
+            }
+        }
+
         let accounts_to_lock = transaction.message.account_keys.clone();
         for pubkey in accounts_to_lock.iter() {
             loop {
@@ -106,7 +147,6 @@ pub async fn run(
 
         log::info!("{:?}", sanitized.clone());
 
-        let payer = transaction.message.account_keys[0];
         let amount = 1_000_000; // For now, using a fixed amount. Replace with actual amount extraction
 
         let processor = create_transaction_batch_processor(
@@ -121,11 +161,12 @@ pub async fn run(
 
         let processing_environment = TransactionProcessingEnvironment {
             blockhash: Hash::default(),
-            epoch_total_stake: 0u64,
+            epoch_total_stake: Some(0u64),
             feature_set: Arc::new(feature_set),
             rent_collector: Some(&rent_collector),
-            blockhash_lamports_per_signature: fee_structure.lamports_per_signature,
-            fee_lamports_per_signature: fee_structure.lamports_per_signature,
+            epoch_vote_accounts: Some(&HashMap::new()),
+            fee_structure: Some(&fee_structure),
+            lamports_per_signature: fee_structure.lamports_per_signature,
         };
 
         let processing_config = TransactionProcessingConfig {
@@ -140,28 +181,19 @@ pub async fn run(
             &processing_environment, 
             &processing_config
         );
-        log::info!("{:#?}", status.processing_results);
+        log::info!("{:#?}", status.execution_results);
         log::info!("error_metrics: {:#?}", status.error_metrics);
 
         let data_new = 
         status
-        .processing_results
+        .loaded_transactions  // Use loaded_transactions instead
         .iter()
-        .map(|res| {
+        .map(|tx| {
             println!("Executed transaction:");
             log::info!("Executed transaction");
-            let enum_one = res.as_ref().unwrap();
-    
-            match enum_one {
-                ProcessedTransaction::Executed(tx) => {
-                    println!("Executed transaction: {:?}", tx.loaded_transaction.accounts);
-                    Some(tx.loaded_transaction.accounts.clone()) 
-                }
-                ProcessedTransaction::FeesOnly(tx) => {
-                    println!("Fees-only transaction: {:?}", tx);
-                    None 
-                }
-            }
+            Some(tx.accounts.iter()
+                .map(|(pubkey, account)| (*pubkey, account.clone()))
+                .collect())
         }).collect::<Vec<Option<Vec<(Pubkey, AccountSharedData)>>>>();
 
         let first_index_data = data_new[0].as_ref().unwrap().clone();

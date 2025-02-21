@@ -4,7 +4,7 @@ use crate::delegation_service::DelegationService;
 
 use actix_web::{web, App, HttpServer};
 use async_channel;
-use frontend::FrontendMessage;
+use frontend::{FrontendMessage, RollupTransaction};
 use rollupdb::{RollupDB, RollupDBMessage};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::{account::AccountSharedData, transaction::Transaction};
@@ -28,25 +28,16 @@ fn main() { // async
 
     log::info!("starting HTTP server at http://localhost:8080");
 
-    // let (tx, rx) = oneshot::channel::<Option<bool>>();
-    let (sequencer_sender, sequencer_receiver) = crossbeam::channel::unbounded::<Transaction>();
+    let (sequencer_sender, sequencer_receiver) = 
+        crossbeam::channel::unbounded::<(Transaction, Vec<u8>)>();
     let (rollupdb_sender, rollupdb_receiver) = crossbeam::channel::unbounded::<RollupDBMessage>();
-//     let (sequencer_sender, sequencer_receiver) = async_channel::bounded::<Transaction>(100);
-// let (rollupdb_sender, rollupdb_receiver) = async_channel::unbounded::<RollupDBMessage>();
+
     
-    // let (sequencer_sender, sequencer_receiver) = async_channel::bounded::<Transaction>(100); // Channel for communication between frontend and sequencer
-    // let (rollupdb_sender, rollupdb_receiver) = async_channel::unbounded::<RollupDBMessage>(); // Channel for communication between sequencer and accountsdb
     let (frontend_sender, frontend_receiver) = async_channel::unbounded::<FrontendMessage>(); // Channel for communication between data availability layer and frontend
     pub type PubkeyAccountSharedData = Option<Vec<(Pubkey, AccountSharedData)>>;
     let (account_sender, account_receiver) = async_channel::unbounded::<PubkeyAccountSharedData>();
     let (sender_locked_account, receiver_locked_account) = async_channel::unbounded::<bool>();
-    // std::thread::spawn(sequencer::run(sequencer_receiver, rollupdb_sender.clone()));
-    
-    // let rt = Builder::new()
-    //     .threaded_scheduler()
-    //     .enable_all()
-    //     .build()
-    //     .unwrap();
+
     let db_sender2 = rollupdb_sender.clone();
     let fe_2 = frontend_sender.clone();
     
@@ -54,6 +45,8 @@ fn main() { // async
         DelegationService::new("https://api.devnet.solana.com")
     ));
     
+    let delegation_service_clone = delegation_service.clone();
+
     let asdserver_thread = thread::spawn(|| {
         let rt = Builder::new_multi_thread()
             .worker_threads(4)
@@ -66,19 +59,12 @@ fn main() { // async
                 db_sender2,
                 account_receiver,
                 receiver_locked_account,
+                delegation_service_clone,
             ).await.unwrap()
         });
         rt.block_on(RollupDB::run(rollupdb_receiver, fe_2, account_sender, sender_locked_account));
     });
-    // Create sequencer task
-    // tokio::spawn(sequencer::run(sequencer_receiver, rollupdb_sender.clone()));
-    // tokio::task::spawn_blocking(|| sequencer::run(sequencer_receiver, rollupdb_sender.clone()) ).await.unwrap();
-    // tokio::task::block_in_place(|| sequencer::run(sequencer_receiver, rollupdb_sender.clone()) ).await.unwrap();
-
-    // Create rollup db task (accounts + transactions)
-    // tokio::spawn(RollupDB::run(rollupdb_receiver, frontend_sender.clone()));
-
-    // let frontend_receiver_mutex = Arc::new(Mutex::new(frontend_receiver));
+   
 
      // Spawn the Actix Web server in a separate thread
     let server_thread = thread::spawn(|| {
@@ -96,20 +82,9 @@ fn main() { // async
                 .app_data(web::Data::new(rollupdb_sender.clone()))
                 .app_data(web::Data::new(frontend_sender.clone()))
                 .app_data(web::Data::new(frontend_receiver.clone()))
-                .app_data(web::Data::new(delegation_service.clone()))
                 .route("/", web::get().to(frontend::test))
-                .route(
-                    "/get_transaction",
-                    web::post().to(frontend::get_transaction),
-                )
-                .route(
-                    "/submit_transaction",
-                    web::post().to(frontend::submit_transaction),
-                )
-            // .service(
-            //     web::resource("/submit_transaction")
-            //         .route(web::post().to(frontend::submit_transaction)),
-            // )
+                .route("/get_transaction", web::post().to(frontend::get_transaction))
+                .route("/submit_transaction", web::post().to(frontend::submit_transaction))
         })
         .worker_max_blocking_threads(2)
         .bind("127.0.0.1:8080")
@@ -117,13 +92,8 @@ fn main() { // async
         .run()
         .await
         .unwrap();
-        // tokio::time::sleep(std::time::Duration::from_secs(20)).await;
         });
         });
         server_thread.join().unwrap();
 
-    // rt.shutdown_timeout(std::time::Duration::from_secs(20));
-
-
-    // Ok(())
 }

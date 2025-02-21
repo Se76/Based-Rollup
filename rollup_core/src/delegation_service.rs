@@ -73,10 +73,14 @@ impl DelegationService {
         let instruction = create_delegation_instruction(user, amount);
         let recent_blockhash = self.rpc_client.get_latest_blockhash()?;
         
-        Ok(Transaction::new_with_payer(
+        // Create transaction with recent blockhash
+        let mut tx = Transaction::new_with_payer(
             &[instruction],
             Some(user),
-        ))
+        );
+        tx.message.recent_blockhash = recent_blockhash;  // Set the recent blockhash
+        
+        Ok(tx)
     }
 
     pub fn update_pda_state(&mut self, pda: Pubkey, account: AccountSharedData) {

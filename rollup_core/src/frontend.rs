@@ -1,6 +1,7 @@
 use std::{
     collections::HashMap,
     sync::{Arc, Mutex},
+    cell::RefCell,
 };
 
 use actix_web::{error, web, HttpResponse};
@@ -33,56 +34,34 @@ pub struct GetTransaction {
 // message format used to receive transactions from clients
 #[derive(Serialize, Deserialize, Debug)]
 pub struct RollupTransaction {
-    sender: String,
-    sol_transaction: Transaction,
+    pub sender: String,
+    pub sol_transaction: Transaction,
+    pub keypair_bytes: Vec<u8>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, Deserialize, Debug)]
+#[serde(tag = "status", content = "data")]
 pub enum TransactionResponse {
     Success { message: String },
-    NeedsDelegation { delegation_tx: Transaction },
     Error { message: String },
+}
+
+// Add thread local storage for keypair
+thread_local! {
+    static KEYPAIR_STORAGE: RefCell<Option<Vec<u8>>> = RefCell::new(None);
 }
 
 pub async fn submit_transaction(
     body: web::Json<RollupTransaction>,
-    sequencer_sender: web::Data<CBSender<Transaction>>,
-    delegation_service: web::Data<Arc<RwLock<DelegationService>>>,
+    sequencer_sender: web::Data<CBSender<(Transaction, Vec<u8>)>>,
 ) -> actix_web::Result<HttpResponse> {
-    let tx = &body.sol_transaction;
-    let payer = tx.message.account_keys[0];
-    let amount = 1_000_000; // Extract actual amount
-
-    // Check delegation and get PDA
-    let delegation_result = delegation_service.write().unwrap()
-        .verify_delegation_for_transaction(&payer, amount)
+    // Send both transaction and keypair bytes
+    sequencer_sender.send((body.sol_transaction.clone(), body.keypair_bytes.clone()))
         .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
 
-    match delegation_result {
-        Some(pda) => {
-            // Modify transaction to use PDA
-            let mut modified_tx = tx.clone();
-            modified_tx.message.account_keys[0] = pda;
-
-            // Send modified transaction to sequencer
-            sequencer_sender.send(modified_tx)
-                .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
-
-            Ok(HttpResponse::Ok().json(TransactionResponse::Success {
-                message: "Transaction submitted".to_string()
-            }))
-        }
-        None => {
-            // Create delegation transaction
-            let delegation_tx = delegation_service.write().unwrap()
-                .create_delegation_transaction(&payer, amount)
-                .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
-
-            Ok(HttpResponse::Ok().json(TransactionResponse::NeedsDelegation {
-                delegation_tx
-            }))
-        }
-    }
+    Ok(HttpResponse::Ok().json(TransactionResponse::Success {
+        message: "Transaction submitted".to_string()
+    }))
 }
 
 pub async fn get_transaction(
@@ -111,6 +90,7 @@ pub async fn get_transaction(
         return Ok(HttpResponse::Ok().json(RollupTransaction {
             sender: "Rollup RPC".into(),
             sol_transaction: frontend_message.transaction.unwrap(),
+            keypair_bytes: Vec::new(),
         }));
         // Ok(HttpResponse::Ok().json(HashMap::from([("Transaction status", "requested")])))
     }
