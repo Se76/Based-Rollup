@@ -1,27 +1,21 @@
 use {
-    crate::delegation::{find_delegation_pda, DelegatedAccount, create_delegation_instruction},
-    solana_sdk::{
-        account::{AccountSharedData, ReadableAccount},
-        pubkey::Pubkey,
-        transaction::Transaction,
-        message::Message,
-    },
-    solana_client::rpc_client::RpcClient,
-    anyhow::{Result, anyhow},
-    std::collections::HashMap,
-    borsh::BorshDeserialize,
+    crate::delegation::{create_delegation_instruction, find_delegation_pda, DelegatedAccount}, anyhow::{anyhow, Result}, borsh::BorshDeserialize, solana_client::rpc_client::RpcClient, solana_sdk::{
+        account::{AccountSharedData, ReadableAccount}, message::Message, pubkey::Pubkey, signature::Keypair, transaction::Transaction
+    }, std::collections::HashMap
 };
 
 pub struct DelegationService {
     rpc_client: RpcClient,
     pda_cache: HashMap<Pubkey, AccountSharedData>,
+    signer: Keypair,
 }
 
 impl DelegationService {
-    pub fn new(rpc_url: &str) -> Self {
+    pub fn new(rpc_url: &str, signer: Keypair) -> Self {
         Self {
             rpc_client: RpcClient::new(rpc_url.to_string()),
             pda_cache: HashMap::new(),
+            signer: signer,
         }
     }
 

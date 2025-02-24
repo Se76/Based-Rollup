@@ -41,8 +41,13 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
 ) -> TransactionBatchProcessor<RollupForkGraph> {
     let processor = TransactionBatchProcessor::<RollupForkGraph>::new(
         /* slot */ 1,
-        /* epoch */ 1,
-        HashSet::new(),
+        /* epoch */ 1, 
+        Arc::downgrade(&fork_graph),
+        Some(Arc::new(
+            create_program_runtime_environment_v1(feature_set, compute_budget, false, false)
+                .unwrap(),
+        )),
+        None,
     );
 
     processor.program_cache.write().unwrap().set_fork_graph(Arc::downgrade(&fork_graph));
@@ -70,10 +75,10 @@ pub(crate) fn get_transaction_check_results(
     lamports_per_signature: u64,
 ) -> Vec<transaction::Result<CheckedTransactionDetails>> {
     vec![
-        transaction::Result::Ok(CheckedTransactionDetails {
-            nonce: None,
-            lamports_per_signature,
-        });
+        transaction::Result::Ok(CheckedTransactionDetails::new(
+            None,
+            lamports_per_signature
+        ));
         len
     ]
 }

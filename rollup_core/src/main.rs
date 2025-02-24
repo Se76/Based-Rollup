@@ -2,11 +2,12 @@ use std::thread;
 use std::sync::{Arc, RwLock};
 use crate::delegation_service::DelegationService;
 
-use actix_web::{web, App, HttpServer};
+use actix_web::{web, App, HttpResponse, HttpServer};
 use async_channel;
 use frontend::{FrontendMessage, RollupTransaction};
 use rollupdb::{RollupDB, RollupDBMessage};
 use solana_sdk::pubkey::Pubkey;
+use solana_sdk::signature::Keypair;
 use solana_sdk::{account::AccountSharedData, transaction::Transaction};
 use tokio::runtime::Builder;
 use tokio::sync::oneshot;
@@ -29,7 +30,7 @@ fn main() { // async
     log::info!("starting HTTP server at http://localhost:8080");
 
     let (sequencer_sender, sequencer_receiver) = 
-        crossbeam::channel::unbounded::<(Transaction, Vec<u8>)>();
+        crossbeam::channel::unbounded::<Transaction>();
     let (rollupdb_sender, rollupdb_receiver) = crossbeam::channel::unbounded::<RollupDBMessage>();
 
     
@@ -40,12 +41,18 @@ fn main() { // async
 
     let db_sender2 = rollupdb_sender.clone();
     let fe_2 = frontend_sender.clone();
+
+
+    let signer = Keypair::new(); // Temporary keypair, will be replaced when client connects
+    
+    let (delegation_keypair_sender, delegation_keypair_receiver) = async_channel::unbounded::<Vec<u8>>();
     
     let delegation_service = Arc::new(RwLock::new(
-        DelegationService::new("https://api.devnet.solana.com")
+        DelegationService::new("https://api.devnet.solana.com", signer)
     ));
-    
+
     let delegation_service_clone = delegation_service.clone();
+    
 
     let asdserver_thread = thread::spawn(|| {
         let rt = Builder::new_multi_thread()
@@ -85,6 +92,18 @@ fn main() { // async
                 .route("/", web::get().to(frontend::test))
                 .route("/get_transaction", web::post().to(frontend::get_transaction))
                 .route("/submit_transaction", web::post().to(frontend::submit_transaction))
+                .route(
+                    "/init_delegation_service",
+                    {
+                        let delegation_service = delegation_service.clone();
+                        web::post().to(move |body: web::Bytes| {
+                            let keypair = Keypair::from_bytes(&body).unwrap();
+                            *delegation_service.write().unwrap() = 
+                                DelegationService::new("https://api.devnet.solana.com", keypair);
+                            HttpResponse::Ok()
+                        })
+                    },
+                )
         })
         .worker_max_blocking_threads(2)
         .bind("127.0.0.1:8080")
