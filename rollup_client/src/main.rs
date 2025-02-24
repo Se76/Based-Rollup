@@ -34,14 +34,14 @@ async fn main() -> Result<()> {
     let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
-    let ix =
-        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/4));
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&keypair2.pubkey()),
-        &[&keypair2],
-        rpc_client.get_latest_blockhash().await.unwrap(),
-    );
+    // let ix =
+    //     system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/4));
+    // let tx = Transaction::new_signed_with_payer(
+    //     &[ix],
+    //     Some(&keypair2.pubkey()),
+    //     &[&keypair2],
+    //     rpc_client.get_latest_blockhash().await.unwrap(),
+    // );
 
     let ata_1 = spl_associated_token_account::get_associated_token_address(&keypair.pubkey(), &NATIVE_MINT);
     let ata_2 = spl_associated_token_account::get_associated_token_address(&keypair2.pubkey(), &NATIVE_MINT);
@@ -68,6 +68,17 @@ async fn main() -> Result<()> {
     // println!("our tx: {:?}", tx2);
     // let sig = Signature::from_str("3ENa2e9TG6stDNkUZkRcC2Gf5saNMUFhpptQiNg56nGJ9eRBgSJpZBi7WLP5ev7aggG1JAXQWzBk8Xfkjcx1YCM2").unwrap();
     // let tx = rpc_client.get_transaction(&sig, UiTransactionEncoding::Binary).await.unwrap();
+
+
+    // let signiture = rpc_client.send_and_confirm_transaction(&tx2).await;
+    // println!("signitue: {}", signiture.unwrap());
+    // 3SfME36kENVFcK6Z1kp4zMwCGUFDT2inSvHBcQ7gAMv7xgvNLvdNCQbpcnAYdQuwopXtti1jZpDtrwdL4XNkJWx6
+    // 5kqG4z8PDwbHwEEGs4v2R9Ftnkv83gRzdZe8YHf58JTCyrr4U15NAXd8yf5DMEwg4uAvL8jLPSPTxdss16mpYXB5
+    
+
+
+
+
     let client = reqwest::Client::new();
 
     // let tx_encoded: Transaction = tx.try_into().unwrap();
@@ -94,6 +105,14 @@ async fn main() -> Result<()> {
     // .await?;
 
     println!("{submit_transaction:#?}");
+
+
+
+
+
+
+
+
 
     // let serialized_rollup_transaction = serde_json::to_string(&rtx)?;
 

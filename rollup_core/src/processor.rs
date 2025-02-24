@@ -12,6 +12,7 @@ use {
     },
     solana_system_program::system_processor,
     std::sync::{Arc, RwLock},
+    spl_token_2022,
 };
 
 /// In order to use the `TransactionBatchProcessor`, another trait - Solana
@@ -77,6 +78,8 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
         ),
     );
 
+    // processor.program_cache.read().unwrap().programs_to_recompile
+
     // Add the BPF Loader v2 builtin, for the SPL Token program.
     processor.add_builtin(
         callbacks,
@@ -88,6 +91,18 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
             solana_bpf_loader_program::Entrypoint::vm,
         ),
     );
+
+    // processor.add_builtin(
+    //     callbacks,
+    //     solana_inline_spl::token::id(),
+    //     "token_program",
+    //     ProgramCacheEntry::new_builtin(
+    //         0,
+    //         b"token_program".len(),
+    //         spl_token::processor::Processor::process,
+    //         // solana_inline_spl
+    //     )
+    // );
 
     // Adding any needed programs to the processor.
 

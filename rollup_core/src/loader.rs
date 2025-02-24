@@ -29,10 +29,18 @@ pub struct RollupAccountLoader<'a> {
 
 impl<'a> RollupAccountLoader<'a> {
     pub fn new(rpc_client: &'a RpcClient) -> Self {
-        Self {
+        let mut cache = Self {
             cache: RwLock::new(HashMap::new()),
             rpc_client,
-        }
+        };
+        let mut bpf_loader_account = rpc_client.get_account(&solana_sdk::bpf_loader::id()).unwrap();
+        let bpf_account_shared_data: AccountSharedData = bpf_loader_account.into();
+        cache.add_account(solana_sdk::bpf_loader::id(), bpf_account_shared_data);
+
+        let mut associated_token_program_account = rpc_client.get_account(&solana_inline_spl::associated_token_account::id()).unwrap();
+        let associated_token_program_shared_data: AccountSharedData = associated_token_program_account.into();
+        cache.add_account(solana_inline_spl::associated_token_account::id(), associated_token_program_shared_data);
+        cache
     }
 
     pub fn add_account(&mut self, pubkey: Pubkey, modified_or_new_account: AccountSharedData) {

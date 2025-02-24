@@ -180,6 +180,7 @@ pub async fn run( // async
             }
         }).collect::<Vec<Option<Vec<(Pubkey, AccountSharedData)>>>>();
 
+        // We are processing only one transaction and therefore only first index
         let first_index_data = data_new[0].as_ref().unwrap().clone();
         log::info!("swq {:?}", first_index_data);
              // Send processed transaction to db for storage and availability
@@ -225,6 +226,7 @@ pub async fn run( // async
             tx_counter = 0u32;
         }
     }
+    println!("Done");
     Ok(())
 }
 
