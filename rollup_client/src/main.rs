@@ -7,7 +7,7 @@ use solana_sdk::{
 };
 use solana_transaction_status::UiTransactionEncoding::{self, Binary};
 use core::hash;
-use std::{collections::HashMap, ops::Div, str::FromStr};
+use std::{collections::HashMap, f32::MIN, ops::Div, str::FromStr};
 use spl_token;
 // use serde_json;
 use spl_associated_token_account;
@@ -27,42 +27,54 @@ const NATIVE_MINT: Pubkey = spl_token::native_mint::id();
 
 #[tokio::main]
 async fn main() -> Result<()> {
-    let path = "/Users/nicknut/Desktop/Q1_SVM/Basic_Rollup_fork/rollup_client/mykey_1.json";
-    let path2 = "/Users/nicknut/Desktop/Q1_SVM/Basic_Rollup_fork/rollup_client/testkey.json";
-    let path3 = "/Users/nicknut/Desktop/Q1_SVM/Basic_Rollup_fork/rollup_client/owner.json";
+    let MINT: Pubkey = Pubkey::from_str("9djQYHX62Fz5ZBuD1FzxH3VA7WsPVqLJ8b6hgH2HSLCq").unwrap();
+    let path = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/mykey_1.json";
+    let path2 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/testkey.json";
+    let path3 = "/home/izomana/adv-svm/Basic_Rollup_fork/rollup_client/owner.json";
     let keypair = signer::keypair::read_keypair_file(path.to_string()).unwrap();
     let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
+    let keypair3 = signer::keypair::read_keypair_file(path3.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
     let ix =
         system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/4));
-    let tx = Transaction::new_signed_with_payer(
-        &[ix],
-        Some(&keypair2.pubkey()),
-        &[&keypair2],
-        rpc_client.get_latest_blockhash().await.unwrap(),
-    );
+    // let tx = Transaction::new_signed_with_payer(
+    //     &[ix],
+    //     Some(&keypair2.pubkey()),
+    //     &[&keypair2],
+    //     rpc_client.get_latest_blockhash().await.unwrap(),
+    // );
 
-    let ata_1 = spl_associated_token_account::get_associated_token_address(&keypair.pubkey(), &NATIVE_MINT);
-    let ata_2 = spl_associated_token_account::get_associated_token_address(&keypair2.pubkey(), &NATIVE_MINT);
+    let ata_1 = spl_associated_token_account::get_associated_token_address(&keypair3.pubkey(), &MINT);
+    let ata_2 = spl_associated_token_account::get_associated_token_address(&keypair2.pubkey(), &MINT);
 
-    let ix2 =
-        spl_token::instruction::transfer_checked
-        (
-            &spl_token::id(),
-            &ata_1,
-            &NATIVE_MINT,
-            &ata_2,
-            &keypair.pubkey(), 
-            &[&keypair.pubkey()],
-            LAMPORTS_PER_SOL/4,
-            9,
-        ).unwrap();
+    // let ix2 =
+    //     spl_token::instruction::transfer
+    //     (
+    //         &spl_token::id(),
+    //         &ata_1,
+    //         &MINT,
+    //         &ata_2,
+    //         &keypair3.pubkey(), 
+    //         &[&keypair3.pubkey()],
+    //         10, //LAMPORTS_PER_SOL/4,
+    //         1,
+    //     ).unwrap();
+    let ix2 = spl_token::instruction::transfer(
+        &spl_token::ID, 
+        &ata_1, 
+        &ata_2, 
+        &keypair3.pubkey(), 
+        &[&keypair3.pubkey()], 
+        10
+    ).unwrap();
 
     let tx2 = Transaction::new_signed_with_payer(
-        &[ix2],
-        Some(&keypair.pubkey()),
-        &[&keypair],
+        &[ix, ix2],
+        // &[ix],
+        Some(&keypair2.pubkey()),
+        &[&keypair2,  &keypair3],
+        // &[&keypair2],
         rpc_client.get_latest_blockhash().await.unwrap(),
     );
     // println!("our tx: {:?}", tx2);

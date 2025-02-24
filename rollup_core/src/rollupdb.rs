@@ -68,7 +68,7 @@ impl RollupDB {
                         let data: AccountSharedData = account.into();
                         db.locked_accounts
                         .insert(pubkey.clone(), data);
-                        log::info!("account was not found");
+                        log::info!("account was not found: {:#?}", pubkey);
                     }
 
                     if let Some(account) = db.locked_accounts.get(&pubkey) {
@@ -85,7 +85,7 @@ impl RollupDB {
                 // log::info!("locked accounts done: {:?}", db.locked_accounts);
                 for (pubkey, data) in information_to_send.iter() {
                     let res = Account::unpack(data.data().as_ref());
-                    log::info!("result for unpacking accounts: {:?}", res)
+                    log::info!("result for unpacking accounts: {:?}\naffected pubkey: {pubkey:#?}", res)
                 }
                 
                 // log::info!("information to send -> {:?}", information_to_send);
