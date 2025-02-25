@@ -42,10 +42,17 @@ pub async fn submit_transaction(
     log::info!("{body:?}");
 
     // Send transaction to sequencer
-    sequencer_sender
+    // match sequencer_sender
+    //     .send(body.sol_transaction.clone()) {
+    //         Ok(_) => println!("Transaction sent to sequencer"),
+    //         Err(e) => println!("Error sending transaction to sequencer: {}", e),
+    //     };
+        sequencer_sender
         .send(body.sol_transaction.clone())
         
         .unwrap();
+
+
 
     // Return response
     Ok(HttpResponse::Ok().json(HashMap::from([("Transaction status", "Submitted")])))

@@ -54,7 +54,11 @@ fn main() { // async
             .build()
             .unwrap();
 
-
+    //     rt.block_on(async {tokio::join!(
+    //         sequencer::run(sequencer_receiver, db_sender2, account_receiver, receiver_locked_account),
+    //         RollupDB::run(rollupdb_receiver, fe_2, account_sender, sender_locked_account),
+    //     );}
+    // )
         rt.spawn(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver, receiver_locked_account).await.unwrap()}); // .unwrap() 
         // rt.block_on(async {sequencer::run(sequencer_receiver, db_sender2, account_receiver).unwrap()});
         rt.block_on(RollupDB::run(rollupdb_receiver, fe_2, account_sender, sender_locked_account));
@@ -75,7 +79,7 @@ fn main() { // async
     // let frontend_receiver_mutex = Arc::new(Mutex::new(frontend_receiver));
 
      // Spawn the Actix Web server in a separate thread
-    let server_thread = thread::spawn(|| {
+    let server_thread = thread::spawn(move || {
             // Create a separate Tokio runtime for Actix Web
         let rt2 = Builder::new_multi_thread()
             .worker_threads(4)

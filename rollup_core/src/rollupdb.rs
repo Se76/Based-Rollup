@@ -83,9 +83,12 @@ impl RollupDB {
                 }
                 // log::info!("locking done: {:?}", db.accounts_db);
                 // log::info!("locked accounts done: {:?}", db.locked_accounts);
+                log::info!("info_to_send -> {:?}", information_to_send);
+                log::info!("info_to_send len -> {:?}", information_to_send.len());
                 for (pubkey, data) in information_to_send.iter() {
-                    let res = Account::unpack(data.data().as_ref());
-                    log::info!("result for unpacking accounts: {:?}\naffected pubkey: {pubkey:#?}", res)
+                    if let Ok(account) = Account::unpack(data.data().as_ref()){
+                        log::info!("result for unpacking accounts: {:?}", account);
+                    }   
                 }
                 
                 // log::info!("information to send -> {:?}", information_to_send);
