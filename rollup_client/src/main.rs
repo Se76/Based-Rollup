@@ -47,9 +47,9 @@ async fn main() -> Result<()> {
     let ata_2 = spl_associated_token_account::get_associated_token_address(&keypair2.pubkey(), &NATIVE_MINT);
 
     let ix2 =
-        spl_token::instruction::transfer_checked
+        spl_token_2022::instruction::transfer_checked
         (
-            &spl_token::id(),
+            &spl_token_2022::id(),
             &ata_1,
             &NATIVE_MINT,
             &ata_2,
@@ -59,12 +59,29 @@ async fn main() -> Result<()> {
             9,
         ).unwrap();
 
+    let ix3 = spl_token::instruction::transfer(
+        &spl_token::id(),
+        &ata_1,
+        &ata_2,
+        &keypair.pubkey(),
+        &[],
+        1 // LAMPORTS_PER_SOL/4
+    ).unwrap();
+
+    let tx3 = Transaction::new_with_payer(
+        &[ix3],
+        Some(&keypair.pubkey()),
+    );
+
+
     let tx2 = Transaction::new_signed_with_payer(
         &[ix2],
         Some(&keypair.pubkey()),
         &[&keypair],
         rpc_client.get_latest_blockhash().await.unwrap(),
     );
+
+
     // println!("our tx: {:?}", tx2);
     // let sig = Signature::from_str("3ENa2e9TG6stDNkUZkRcC2Gf5saNMUFhpptQiNg56nGJ9eRBgSJpZBi7WLP5ev7aggG1JAXQWzBk8Xfkjcx1YCM2").unwrap();
     // let tx = rpc_client.get_transaction(&sig, UiTransactionEncoding::Binary).await.unwrap();
