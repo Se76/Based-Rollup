@@ -1,9 +1,11 @@
+pub mod raydium_utilis;
+
 use anyhow::Result;
 use bincode;
 use serde::{Deserialize, Serialize};
 use solana_client::nonblocking::rpc_client::{self, RpcClient};
 use solana_sdk::{
-    hash::{Hash, Hasher}, instruction::Instruction, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Signature, signer::{self, Signer}, system_instruction, system_program, transaction::Transaction
+    hash::{Hash, Hasher}, native_token::LAMPORTS_PER_SOL, pubkey::Pubkey, signature::Signature, signer::{self, Signer}, system_instruction, system_program, transaction::Transaction, instruction::{AccountMeta, Instruction, CompiledInstruction, InstructionError}
 };
 use solana_transaction_status::UiTransactionEncoding::{self, Binary};
 use core::hash;
@@ -42,12 +44,57 @@ async fn main() -> Result<()> {
     //     &[&keypair2],
     //     rpc_client.get_latest_blockhash().await.unwrap(),
     // );
+    // let ix_raydium = Instruction::new_with_bytes(program_id, data, accounts)
+
+    let ix_mint = spl_token::instruction::initialize_mint(
+        &spl_token::id(),
+        &Pubkey::from_str("EmXq3Ni9gfudTiyNKzzYvpnQqnJEMRw2ttnVXoJXjLo1").unwrap(),
+        &keypair.pubkey(),
+        None,
+        6,
+    ).unwrap();
+
+    let tx_mint = Transaction::new_signed_with_payer(
+        &[ix_mint],
+        Some(&keypair.pubkey()),
+        &[&keypair],
+        rpc_client.get_latest_blockhash().await.unwrap(),
+    );
 
     let ata_1 = spl_associated_token_account::get_associated_token_address(&keypair.pubkey(), &NATIVE_MINT);
     let ata_2 = spl_associated_token_account::get_associated_token_address(&keypair2.pubkey(), &NATIVE_MINT);
 
+    let ix_other = spl_token_2022::instruction::close_account
+    (
+        &spl_token_2022::id(), 
+        &ata_1, 
+        &ata_2, 
+        &keypair.pubkey(), 
+        &[&keypair.pubkey()]
+    ).unwrap();
+
+    let tx_other = Transaction::new_signed_with_payer(
+        &[ix_other],
+        Some(&keypair.pubkey()),
+        &[&keypair],
+        rpc_client.get_latest_blockhash().await.unwrap(),
+    );
+
     let ix2 =
         spl_token::instruction::transfer_checked
+        (
+            &spl_token::id(),
+            &ata_1,
+            &NATIVE_MINT,
+            &ata_2,
+            &keypair.pubkey(), 
+            &[&keypair.pubkey()],
+            LAMPORTS_PER_SOL/4,
+            9,
+        ).unwrap();
+
+    let ix2_token_2022 =
+        spl_token_2022::instruction::transfer_checked
         (
             &spl_token::id(),
             &ata_1,
@@ -65,7 +112,7 @@ async fn main() -> Result<()> {
         &ata_2,
         &keypair.pubkey(),
         &[],
-        1 // LAMPORTS_PER_SOL/4
+        LAMPORTS_PER_SOL
     ).unwrap();
 
     let tx3 = Transaction::new_with_payer(
@@ -76,6 +123,12 @@ async fn main() -> Result<()> {
 
     let tx2 = Transaction::new_signed_with_payer(
         &[ix2],
+        Some(&keypair.pubkey()),
+        &[&keypair],
+        rpc_client.get_latest_blockhash().await.unwrap(),
+    );
+    let tx2_token_2022 = Transaction::new_signed_with_payer(
+        &[ix2_token_2022],
         Some(&keypair.pubkey()),
         &[&keypair],
         rpc_client.get_latest_blockhash().await.unwrap(),
@@ -111,7 +164,7 @@ async fn main() -> Result<()> {
 
     let rtx = RollupTransaction {
         sender: "Me".into(),
-        sol_transaction: tx2,
+        sol_transaction: tx_other,
     };
     let submit_transaction = client
     .post("http://127.0.0.1:8080/submit_transaction")

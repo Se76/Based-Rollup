@@ -5,7 +5,8 @@ use {
         account_loader::CheckedTransactionDetails,
         transaction_processing_callback::TransactionProcessingCallback,
         transaction_processor::TransactionBatchProcessor,
-    }, solana_system_program::system_processor, spl_token_2022, std::sync::{Arc, RwLock}
+    }, solana_system_program::system_processor, spl_token_2022, std::sync::{Arc, RwLock},
+    solana_client::rpc_client::RpcClient,
 };
 
 /// In order to use the `TransactionBatchProcessor`, another trait - Solana
@@ -53,6 +54,8 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
         // None,
     );
 
+    let rpc_client_temp = RpcClient::new("https://api.devnet.solana.com".to_string());
+
     processor.program_cache.write().unwrap().set_fork_graph(Arc::downgrade(&fork_graph));
     {
     let mut cache = processor.program_cache.write().unwrap();
@@ -66,6 +69,27 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
                 Arc::new(
                     ProgramCacheEntry::new(
                         &solana_sdk::bpf_loader::id(), 
+                        program_runtime_environment, 
+                        1, 
+                        1, 
+                        elf_bytes, 
+                        elf_bytes.len(), 
+                        &mut LoadProgramMetrics::default(),
+                    ).unwrap()
+                )
+            );
+        }
+        if let Some(account) = callbacks.get_account_shared_data(&spl_token_2022::id()) {
+            // let pubkey_to_the_elf_bytes = account.owner();
+            // let account_holding_elf_bytes = rpc_client_temp.get_account(&pubkey_to_the_elf_bytes).unwrap();
+            // let elf_bytes = account_holding_elf_bytes.data();    
+            let elf_bytes = account.data();
+            let program_runtime_environment = cache.environments.program_runtime_v1.clone();
+            cache.assign_program(
+                spl_token_2022::id(), 
+                Arc::new(
+                    ProgramCacheEntry::new(
+                        &solana_sdk::bpf_loader_upgradeable::id(), 
                         program_runtime_environment, 
                         1, 
                         1, 
