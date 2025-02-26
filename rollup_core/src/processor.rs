@@ -58,6 +58,7 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
 
     {
         let mut cache = processor.program_cache.write().unwrap();
+        cache.environments.program_runtime_v1 = Arc::new(create_program_runtime_environment_v1(feature_set, compute_budget, false, false).unwrap());
         // Add the SPL Token program to the cache.
         if let Some(account) = callbacks.get_account_shared_data(&spl_token::id()) {
             let elf_bytes = account.data();
