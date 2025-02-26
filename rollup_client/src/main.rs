@@ -47,9 +47,9 @@ async fn main() -> Result<()> {
     let ata_2 = spl_associated_token_account::get_associated_token_address(&keypair2.pubkey(), &NATIVE_MINT);
 
     let ix2 =
-        spl_token_2022::instruction::transfer_checked
+        spl_token::instruction::transfer_checked
         (
-            &spl_token_2022::id(),
+            &spl_token::id(),
             &ata_1,
             &NATIVE_MINT,
             &ata_2,

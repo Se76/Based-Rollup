@@ -1,18 +1,11 @@
 //! A helper to initialize Solana SVM API's `TransactionBatchProcessor`.
 
 use {
-    solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1,
-    solana_compute_budget::compute_budget::ComputeBudget,
-    solana_program_runtime::loaded_programs::{BlockRelation, ForkGraph, ProgramCacheEntry},
-    solana_sdk::{clock::Slot, feature_set::FeatureSet, pubkey::Pubkey, transaction},
-    solana_svm::{
+    solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1, solana_compute_budget::compute_budget::ComputeBudget, solana_program_runtime::loaded_programs::{BlockRelation, ForkGraph, LoadProgramMetrics, ProgramCacheEntry}, solana_sdk::{account::ReadableAccount, clock::Slot, feature_set::FeatureSet, pubkey::Pubkey, transaction}, solana_svm::{
         account_loader::CheckedTransactionDetails,
         transaction_processing_callback::TransactionProcessingCallback,
         transaction_processor::TransactionBatchProcessor,
-    },
-    solana_system_program::system_processor,
-    std::sync::{Arc, RwLock},
-    spl_token_2022,
+    }, solana_system_program::system_processor, spl_token_2022, std::sync::{Arc, RwLock}
 };
 
 /// In order to use the `TransactionBatchProcessor`, another trait - Solana
@@ -61,7 +54,29 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
     );
 
     processor.program_cache.write().unwrap().set_fork_graph(Arc::downgrade(&fork_graph));
-
+    {
+    let mut cache = processor.program_cache.write().unwrap();
+        cache.environments.program_runtime_v1 = Arc::new(create_program_runtime_environment_v1(feature_set, compute_budget, false, false).unwrap());
+        // Add the SPL Token program to the cache.
+        if let Some(account) = callbacks.get_account_shared_data(&spl_token::id()) {
+            let elf_bytes = account.data();
+            let program_runtime_environment = cache.environments.program_runtime_v1.clone();
+            cache.assign_program(
+                spl_token::id(), 
+                Arc::new(
+                    ProgramCacheEntry::new(
+                        &solana_sdk::bpf_loader::id(), 
+                        program_runtime_environment, 
+                        1, 
+                        1, 
+                        elf_bytes, 
+                        elf_bytes.len(), 
+                        &mut LoadProgramMetrics::default(),
+                    ).unwrap()
+                )
+            );
+        }
+    }
     processor.prepare_program_cache_for_upcoming_feature_set(callbacks, feature_set, compute_budget, 1, 50);
 
     // processor.prepare_program_cache_for_upcoming_feature_set(callbacks, upcoming_feature_set, compute_budget, slot_index, slots_in_epoch);

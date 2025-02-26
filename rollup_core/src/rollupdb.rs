@@ -8,7 +8,7 @@ use solana_sdk::{
 use crossbeam::channel::{Receiver as CBReceiver, Sender as CBSender};
 use std::{
     collections::{HashMap, HashSet},
-    default,
+    default, str::FromStr,
 };
 use solana_client::rpc_client::{RpcClient};
 
@@ -113,13 +113,17 @@ impl RollupDB {
                 let locked_keys = tx.message.account_keys.clone(); // get the keys
                 log::info!("it is starting accounts_db{:#?}", db.accounts_db);
                 log::info!("it is starting locked_db{:#?}", db.locked_accounts);
+                log::info!("it is starting locked_keys{:#?}", locked_keys);
                 for (pubkey, data) in processed_data.iter() {
-                    db.locked_accounts.remove(pubkey).unwrap();
-                    db.accounts_db.insert(*pubkey, data.clone());
-                    log::info!("it is final accounts_db{:#?}", db.accounts_db);
-                    log::info!("it is final locked_db{:#?}", db.locked_accounts);
-                    
-
+                    if pubkey == &Pubkey::from_str("BPFLoader2111111111111111111111111111111111").unwrap() {
+                        continue
+                    } else {
+                        log::info!("it is final accounts_dddb{:#?}", pubkey);
+                        db.locked_accounts.remove(pubkey).unwrap();
+                        db.accounts_db.insert(*pubkey, data.clone());
+                        log::info!("it is final accounts_db{:#?}", db.accounts_db);
+                        log::info!("it is final locked_db{:#?}", db.locked_accounts);
+                    }
                 }
                 // send transaction to the db.transactions
 

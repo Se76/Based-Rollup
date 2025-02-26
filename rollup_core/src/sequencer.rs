@@ -90,21 +90,21 @@ pub async fn run( // async
 
         if let Some(vec_of_accounts_data) = account_reciever.recv().await.unwrap() {
 
-            let index = transaction.message.instructions[0].program_id_index;
-            let (program_id, account_shared_data) = &vec_of_accounts_data[index as usize];
-            log::info!("program_id__: {}", native_loader::check_id(&program_id));
+            // let index = transaction.message.instructions[0].program_id_index;
+            // let (program_id, account_shared_data) = &vec_of_accounts_data[index as usize];
+            // log::info!("program_id__: {}", native_loader::check_id(&program_id));
 
-            let owner = account_shared_data.owner();
-            log::info!("owner__: {}", owner);
-            log::info!("owner__: {}", native_loader::check_id(owner));
+            // let owner = account_shared_data.owner();
+            // log::info!("owner__: {}", owner);
+            // log::info!("owner__: {}", native_loader::check_id(owner));
 
-            let builtins_start_index = transaction.message.account_keys.len();
-            if !vec_of_accounts_data
-                .get(builtins_start_index..)
-                .ok_or(TransactionError::ProgramAccountNotFound)?
-                .iter()
-                .any(|(key, _)| key == owner) {
-                    log::info!("builtins not found");}
+            // let builtins_start_index = transaction.message.account_keys.len();
+            // if !vec_of_accounts_data
+            //     .get(builtins_start_index..)
+            //     .ok_or(TransactionError::ProgramAccountNotFound)?
+            //     .iter()
+            //     .any(|(key, _)| key == owner) {
+            //         log::info!("builtins not found");}
         //             if let Some(owner_account) = callbacks.get_account_shared_data(owner_id) {
         //                 if !native_loader::check_id(owner_account.owner())
         //                     || !owner_account.executable()
@@ -139,17 +139,17 @@ pub async fn run( // async
             log::info!("data from an account: {:?}", data);
         }
 
-        let program_id = transaction.message.account_keys[transaction.message.instructions[0].program_id_index as usize];
-        log::info!("program_id____: {}", program_id);
-        let program = rollup_account_loader.get_account_shared_data(&program_id).unwrap();
-        if let Ok(UpgradeableLoaderState::Program {
-            programdata_address,
-        }) = program.state() {
-            log::info!("programdata_address__: {}", programdata_address);
-        }
+        // let program_id = transaction.message.account_keys[transaction.message.instructions[0].program_id_index as usize];
+        // log::info!("program_id____: {}", program_id);
+        // let program = rollup_account_loader.get_account_shared_data(&program_id).unwrap();
+        // if let Ok(UpgradeableLoaderState::Program {
+        //     programdata_address,
+        // }) = program.state() {
+        //     log::info!("programdata_address__: {}", programdata_address);
+        // }
 
-        let pubkey_program_data = Pubkey::from_str("DoU57AYuPFu2QU514RktNPG22QhApEjnKxnBcu4BHDTY").unwrap();
-        let programdata: AccountSharedData = rollup_account_loader.get_account_shared_data(&pubkey_program_data).unwrap();
+        // let pubkey_program_data = Pubkey::from_str("DoU57AYuPFu2QU514RktNPG22QhApEjnKxnBcu4BHDTY").unwrap();
+        // let programdata: AccountSharedData = rollup_account_loader.get_account_shared_data(&pubkey_program_data).unwrap();
 
         // <AccountSharedData as solana_sdk::account_utils::StateMut<AccountSharedData>>::state(&programdata);
         // if let Ok(UpgradeableLoaderState::ProgramData {

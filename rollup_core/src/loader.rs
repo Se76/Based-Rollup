@@ -44,10 +44,10 @@ impl<'a> RollupAccountLoader<'a> {
         let mut sol_account = rpc_client.get_account(&pubkey).unwrap();
         let sol_account_shared_data: AccountSharedData = sol_account.into();
 
-        let pubkey_program_data = Pubkey::from_str("DoU57AYuPFu2QU514RktNPG22QhApEjnKxnBcu4BHDTY").unwrap();
-        let mut program_data_account = rpc_client.get_account(&pubkey_program_data).unwrap();
-        let program_data_account_shared_data: AccountSharedData = program_data_account.into();
-        cache.add_account(pubkey_program_data, program_data_account_shared_data);
+        // let pubkey_program_data = Pubkey::from_str("DoU57AYuPFu2QU514RktNPG22QhApEjnKxnBcu4BHDTY").unwrap();
+        // let mut program_data_account = rpc_client.get_account(&pubkey_program_data).unwrap();
+        // let program_data_account_shared_data: AccountSharedData = program_data_account.into();
+        // cache.add_account(pubkey_program_data, program_data_account_shared_data);
         cache
     }
 
