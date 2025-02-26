@@ -1,9 +1,11 @@
+use sha2::{Sha256, Digest};
 use solana_sdk::{
     pubkey::Pubkey,
     instruction::{AccountMeta, Instruction},
     system_program,
 };
 use borsh::{BorshSerialize, BorshDeserialize};
+
 
 #[derive(BorshSerialize, BorshDeserialize)]
 pub struct DelegatedAccount {
@@ -13,11 +15,6 @@ pub struct DelegatedAccount {
     pub bump: u8,
 }
 
-#[derive(BorshSerialize)]
-struct AnchorInstruction {
-    discriminator: [u8; 8],
-    data: InitializeDelegateArgs,
-}
 
 #[derive(BorshSerialize)]
 pub struct InitializeDelegateArgs {
@@ -40,13 +37,38 @@ pub fn find_delegation_pda(owner: &Pubkey) -> (Pubkey, u8) {
 pub fn create_delegation_instruction(owner: &Pubkey, amount: u64) -> Instruction {
     let (pda, _) = find_delegation_pda(owner);
     
-    // Anchor discriminator for "initialize_delegate"
-    let discriminator = [103, 117, 89, 87, 161, 37, 220, 226];
+    // Calculate Anchor discriminator for "initialize_delegate"
+    let discriminator = {
+        let mut hasher = Sha256::new();
+        hasher.update(b"global:initialize_delegate");
+        let result = hasher.finalize();
+        let mut disc = [0u8; 8];
+        disc.copy_from_slice(&result[..8]);
+        disc
+    };
     
-    let ix_data = AnchorInstruction {
-        discriminator,
-        data: InitializeDelegateArgs { amount },
-    }.try_to_vec().unwrap();
+    let mut ix_data = discriminator.to_vec();
+    ix_data.extend(InitializeDelegateArgs { amount }.try_to_vec().unwrap());
+
+    Instruction {
+        program_id: get_delegation_program_id(),
+        accounts: vec![
+            AccountMeta::new(*owner, true),
+            AccountMeta::new(pda, false),
+            AccountMeta::new_readonly(system_program::id(), false),
+        ],
+        data: ix_data,
+    }
+}
+
+pub fn create_topup_instruction(owner: &Pubkey, amount: u64) -> Instruction {
+    let (pda, _) = find_delegation_pda(owner);
+    
+    // Anchor discriminator for "topup"
+    let discriminator = [186, 41, 37, 128, 34, 5, 77, 101]; // This should match your Anchor program's "topup" instruction
+    
+    let mut ix_data = discriminator.to_vec();
+    ix_data.extend(InitializeDelegateArgs { amount }.try_to_vec().unwrap());
 
     Instruction {
         program_id: get_delegation_program_id(),

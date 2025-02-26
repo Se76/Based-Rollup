@@ -22,7 +22,7 @@ use solana_svm::{
    transaction_processing_callback::TransactionProcessingCallback, transaction_processing_result::ProcessedTransaction, transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment}
 };
 use tokio::time::{sleep, Duration};
-use crate::{delegation_service::DelegationService, rollupdb::RollupDBMessage, settle::settle_state};
+use crate::{delegation::find_delegation_pda, delegation_service::DelegationService, rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
 use crate::errors::RollupErrors;
@@ -45,6 +45,63 @@ pub async fn run( // async
         &rpc_client_temp,
     );
     while let transaction = sequencer_receiver_channel.recv().unwrap() {
+        let sender = transaction.message.account_keys[0];
+        let amount = 1_000_000;
+
+         // Check delegation status first
+         let needs_delegation = {
+            let mut delegation_service = delegation_service.write().unwrap();
+            match delegation_service.get_or_fetch_pda(&sender)? {
+                Some((_, delegation)) => {
+                    // Log current and required amounts
+                    log::info!(
+                        "Checking delegation: current amount={}, required amount={}", 
+                        delegation.delegated_amount, 
+                        amount
+                    );
+                    delegation.delegated_amount < amount
+                }
+                None => {
+                    log::info!("No existing delegation found, creating new one with amount={}", amount);
+                    true
+                }
+            }
+        };
+
+        if needs_delegation {
+            // Create delegation transaction outside the lock
+            let delegation_tx = {
+                let mut delegation_service = delegation_service.write().unwrap();
+                match delegation_service.create_delegation_transaction(&sender, amount) {
+                    Ok(tx) => tx,
+                    Err(e) => {
+                        log::error!("Failed to create delegation transaction: {}", e);
+                        continue;
+                    }
+                }
+            };
+
+            // Submit and confirm delegation
+            match rpc_client_temp.send_and_confirm_transaction(&delegation_tx) {
+                Ok(sig) => {
+                    log::info!("Created delegation with signature: {}", sig);
+                    // Wait for confirmation
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    
+                    // Update cache after successful delegation
+                    let (pda, _) = find_delegation_pda(&sender);
+                    if let Ok(account) = rpc_client_temp.get_account(&pda) {
+                        delegation_service.write().unwrap()
+                            .update_pda_state(pda, account.into());
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to create delegation: {}", e);
+                    continue; // Skip processing this transaction
+                }
+            }
+        }
+
         let accounts_to_lock = transaction.message.account_keys.clone();
         for pubkey in accounts_to_lock.iter() {
             loop {

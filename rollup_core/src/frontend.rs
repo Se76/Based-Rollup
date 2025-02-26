@@ -53,10 +53,10 @@ thread_local! {
 
 pub async fn submit_transaction(
     body: web::Json<RollupTransaction>,
-    sequencer_sender: web::Data<CBSender<(Transaction, Vec<u8>)>>,
+    sequencer_sender: web::Data<CBSender<Transaction>>,
 ) -> actix_web::Result<HttpResponse> {
-    // Send both transaction and keypair bytes
-    sequencer_sender.send((body.sol_transaction.clone(), body.keypair_bytes.clone()))
+    // Only send the transaction
+    sequencer_sender.send(body.sol_transaction.clone())
         .map_err(|e| actix_web::error::ErrorInternalServerError(e.to_string()))?;
 
     Ok(HttpResponse::Ok().json(TransactionResponse::Success {

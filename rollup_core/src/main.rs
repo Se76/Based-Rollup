@@ -4,7 +4,7 @@ use crate::delegation_service::DelegationService;
 
 use actix_web::{web, App, HttpResponse, HttpServer};
 use async_channel;
-use frontend::{FrontendMessage, RollupTransaction};
+use frontend::{FrontendMessage, RollupTransaction, TransactionResponse};
 use rollupdb::{RollupDB, RollupDBMessage};
 use solana_sdk::pubkey::Pubkey;
 use solana_sdk::signature::Keypair;
@@ -57,6 +57,7 @@ fn main() { // async
     let asdserver_thread = thread::spawn(|| {
         let rt = Builder::new_multi_thread()
             .worker_threads(4)
+            .enable_time()
             .build()
             .unwrap();
 
@@ -79,6 +80,7 @@ fn main() { // async
         let rt2 = Builder::new_multi_thread()
             .worker_threads(4)
             .enable_io()
+            .enable_time()
             .build()
             .unwrap();
 
@@ -90,8 +92,14 @@ fn main() { // async
                 .app_data(web::Data::new(frontend_sender.clone()))
                 .app_data(web::Data::new(frontend_receiver.clone()))
                 .route("/", web::get().to(frontend::test))
-                .route("/get_transaction", web::post().to(frontend::get_transaction))
-                .route("/submit_transaction", web::post().to(frontend::submit_transaction))
+                .route(
+                    "/get_transaction",
+                    web::post().to(frontend::get_transaction),
+                )
+                .route(
+                    "/submit_transaction",
+                    web::post().to(frontend::submit_transaction),
+                )
                 .route(
                     "/init_delegation_service",
                     {
@@ -104,6 +112,7 @@ fn main() { // async
                         })
                     },
                 )
+        
         })
         .worker_max_blocking_threads(2)
         .bind("127.0.0.1:8080")

@@ -1,7 +1,7 @@
 use {
     crate::delegation::{create_delegation_instruction, find_delegation_pda, DelegatedAccount}, anyhow::{anyhow, Result}, borsh::BorshDeserialize, solana_client::rpc_client::RpcClient, solana_sdk::{
-        account::{AccountSharedData, ReadableAccount}, message::Message, pubkey::Pubkey, signature::Keypair, transaction::Transaction
-    }, std::collections::HashMap
+        account::{AccountSharedData, ReadableAccount}, message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction
+    }, std::collections::HashMap, log
 };
 
 pub struct DelegationService {
@@ -15,31 +15,45 @@ impl DelegationService {
         Self {
             rpc_client: RpcClient::new(rpc_url.to_string()),
             pda_cache: HashMap::new(),
-            signer: signer,
+            signer,
         }
     }
 
     pub fn get_or_fetch_pda(&mut self, user: &Pubkey) -> Result<Option<(Pubkey, DelegatedAccount)>> {
         let (pda, _) = find_delegation_pda(user);
         
-        // Try cache first
-        if let Some(account) = self.pda_cache.get(&pda) {
-            if let Ok(delegation) = DelegatedAccount::try_from_slice(&account.data()) {
-                return Ok(Some((pda, delegation)));
-            }
-        }
-
-        // If not in cache, try fetching from chain
+        // Always try fetching from chain first to be sure
         match self.rpc_client.get_account(&pda) {
             Ok(account) => {
-                if let Ok(delegation) = DelegatedAccount::try_from_slice(&account.data()) {
-                    self.pda_cache.insert(pda, account.into());
-                    Ok(Some((pda, delegation)))
+                log::info!(
+                    "Found account for PDA: {}, data length: {}, owner: {}", 
+                    pda,
+                    account.data().len(),
+                    account.owner()
+                );
+                // Skip the 8-byte discriminator when deserializing
+                if account.data().len() > 8 {
+                    if let Ok(delegation) = DelegatedAccount::try_from_slice(&account.data()[8..]) {
+                        self.pda_cache.insert(pda, account.into());
+                        Ok(Some((pda, delegation)))
+                    } else {
+                        log::warn!(
+                            "Account exists but couldn't deserialize data for PDA: {}. Data: {:?}", 
+                            pda,
+                            account.data()
+                        );
+                        Ok(None)
+                    }
                 } else {
+                    log::warn!("Account data too short for PDA: {}", pda);
                     Ok(None)
                 }
             }
-            Err(_) => Ok(None)
+            Err(e) => {
+                log::info!("No account found for PDA: {} (Error: {})", pda, e);
+                self.pda_cache.remove(&pda);
+                Ok(None)
+            }
         }
     }
 
@@ -47,32 +61,48 @@ impl DelegationService {
         &mut self,
         user: &Pubkey,
         required_amount: u64,
-    ) -> Result<Option<Pubkey>> {  // Returns PDA if delegation exists and is sufficient
+    ) -> Result<Option<Pubkey>> {
         if let Some((pda, delegation)) = self.get_or_fetch_pda(user)? {
+            log::info!(
+                "Verifying delegation for {}: current={}, required={}", 
+                user, 
+                delegation.delegated_amount, 
+                required_amount
+            );
             if delegation.delegated_amount >= required_amount {
                 Ok(Some(pda))
             } else {
                 Ok(None)
             }
         } else {
+            log::info!("No delegation found for {}", user);
             Ok(None)
         }
     }
 
     pub fn create_delegation_transaction(
-        &self,
+        &mut self,
         user: &Pubkey,
         amount: u64,
     ) -> Result<Transaction> {
+        let (pda, _) = find_delegation_pda(user);
+        
+        // Use the same method as the initial check
+        if let Some((_, delegation)) = self.get_or_fetch_pda(user)? {
+            log::info!(
+                "Found existing delegation for {} with amount {}. Need to implement top-up.", 
+                user,
+                delegation.delegated_amount
+            );
+            return Ok(Transaction::default());
+        }
+
         let instruction = create_delegation_instruction(user, amount);
         let recent_blockhash = self.rpc_client.get_latest_blockhash()?;
+        let message = Message::new(&[instruction], Some(&self.signer.pubkey()));
         
-        // Create transaction with recent blockhash
-        let mut tx = Transaction::new_with_payer(
-            &[instruction],
-            Some(user),
-        );
-        tx.message.recent_blockhash = recent_blockhash;  // Set the recent blockhash
+        let mut tx = Transaction::new_unsigned(message);
+        tx.sign(&[&self.signer], recent_blockhash);
         
         Ok(tx)
     }
