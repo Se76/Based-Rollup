@@ -118,11 +118,8 @@ impl RollupDB {
                     if pubkey == &Pubkey::from_str("BPFLoader2111111111111111111111111111111111").unwrap() {
                         continue
                     } else {
-                        log::info!("it is final accounts_dddb{:#?}", pubkey);
                         db.locked_accounts.remove(pubkey).unwrap();
                         db.accounts_db.insert(*pubkey, data.clone());
-                        log::info!("it is final accounts_db{:#?}", db.accounts_db);
-                        log::info!("it is final locked_db{:#?}", db.locked_accounts);
                     }
                 }
                 // send transaction to the db.transactions
