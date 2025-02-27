@@ -43,11 +43,11 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Connect to devnet
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".to_string());
     
-    // Print balances
+    // Print initial balances
     let sender_balance = rpc_client.get_balance(&sender.pubkey()).await?;
     let receiver_balance = rpc_client.get_balance(&receiver.pubkey()).await?;
-    println!("Sender {} balance: {} SOL", sender.pubkey(), sender_balance as f64 / 1_000_000_000.0);
-    println!("Receiver {} balance: {} SOL", receiver.pubkey(), receiver_balance as f64 / 1_000_000_000.0);
+    println!("Initial Sender {} balance: {} SOL", sender.pubkey(), sender_balance as f64 / 1_000_000_000.0);
+    println!("Initial Receiver {} balance: {} SOL", receiver.pubkey(), receiver_balance as f64 / 1_000_000_000.0);
 
     // Initialize delegation service
     println!("\nInitializing delegation service...");
@@ -63,33 +63,44 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Wait for initialization
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    // Create test transaction
-    let test_tx = Transaction::new_signed_with_payer(
-        &[system_instruction::transfer(
-            &sender.pubkey(),
-            &receiver.pubkey(),
-            250_000_000, // 0.25 SOL
-        )],
-        Some(&sender.pubkey()),
-        &[&sender],
-        rpc_client.get_latest_blockhash().await?,
-    );
+    // Send 10 transactions
+    for i in 0..2 {
+        println!("\nSending transaction {} of 2", i + 1);
+        
+        let test_tx = Transaction::new_signed_with_payer(
+            &[system_instruction::transfer(
+                &sender.pubkey(),
+                &receiver.pubkey(),
+                250_000_000, // 0.25 SOL
+            )],
+            Some(&sender.pubkey()),
+            &[&sender],
+            rpc_client.get_latest_blockhash().await?,
+        );
 
-    // Create RollupTransaction
-    let rtx = RollupTransaction {
-        sender: sender.pubkey().to_string(),
-        sol_transaction: test_tx,
-        keypair_bytes: sender.to_bytes().to_vec(),
-    };
+        let rtx = RollupTransaction {
+            sender: sender.pubkey().to_string(),
+            sol_transaction: test_tx,
+            keypair_bytes: sender.to_bytes().to_vec(),
+        };
 
-    // Send to rollup
-    let response = client
-        .post("http://127.0.0.1:8080/submit_transaction")
-        .json(&rtx)
-        .send()
-        .await?;
+        let response = client
+            .post("http://127.0.0.1:8080/submit_transaction")
+            .json(&rtx)
+            .send()
+            .await?;
 
-    println!("Transaction response: {:?}", response.text().await?);
+        println!("Transaction {} response: {:?}", i + 1, response.text().await?);
+        
+        // Small delay between transactions
+        tokio::time::sleep(Duration::from_secs(1)).await;
+    }
+
+    // Print final balances
+    let sender_balance = rpc_client.get_balance(&sender.pubkey()).await?;
+    let receiver_balance = rpc_client.get_balance(&receiver.pubkey()).await?;
+    println!("\nFinal Sender {} balance: {} SOL", sender.pubkey(), sender_balance as f64 / 1_000_000_000.0);
+    println!("Final Receiver {} balance: {} SOL", receiver.pubkey(), receiver_balance as f64 / 1_000_000_000.0);
     
     Ok(())
 }

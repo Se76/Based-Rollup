@@ -37,7 +37,6 @@ pub fn find_delegation_pda(owner: &Pubkey) -> (Pubkey, u8) {
 pub fn create_delegation_instruction(owner: &Pubkey, amount: u64) -> Instruction {
     let (pda, _) = find_delegation_pda(owner);
     
-    // Calculate Anchor discriminator for "initialize_delegate"
     let discriminator = {
         let mut hasher = Sha256::new();
         hasher.update(b"global:initialize_delegate");
@@ -53,9 +52,9 @@ pub fn create_delegation_instruction(owner: &Pubkey, amount: u64) -> Instruction
     Instruction {
         program_id: get_delegation_program_id(),
         accounts: vec![
-            AccountMeta::new(*owner, true),
-            AccountMeta::new(pda, false),
-            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new(*owner, true),              // Signer and fee payer
+            AccountMeta::new(pda, false),                // PDA to be initialized
+            AccountMeta::new_readonly(system_program::id(), false), // System program for init
         ],
         data: ix_data,
     }
@@ -64,18 +63,50 @@ pub fn create_delegation_instruction(owner: &Pubkey, amount: u64) -> Instruction
 pub fn create_topup_instruction(owner: &Pubkey, amount: u64) -> Instruction {
     let (pda, _) = find_delegation_pda(owner);
     
-    // Anchor discriminator for "topup"
-    let discriminator = [186, 41, 37, 128, 34, 5, 77, 101]; // This should match your Anchor program's "topup" instruction
+    // Calculate Anchor discriminator for "top_up"
+    let discriminator = {
+        let mut hasher = Sha256::new();
+        hasher.update(b"global:top_up");
+        let result = hasher.finalize();
+        let mut disc = [0u8; 8];
+        disc.copy_from_slice(&result[..8]);
+        disc
+    };
     
     let mut ix_data = discriminator.to_vec();
-    ix_data.extend(InitializeDelegateArgs { amount }.try_to_vec().unwrap());
+    ix_data.extend(amount.to_le_bytes());
 
     Instruction {
         program_id: get_delegation_program_id(),
         accounts: vec![
-            AccountMeta::new(*owner, true),
-            AccountMeta::new(pda, false),
-            AccountMeta::new_readonly(system_program::id(), false),
+            AccountMeta::new(*owner, true),              // Owner must be signer
+            AccountMeta::new(pda, false),                // PDA to be topped up
+            AccountMeta::new_readonly(system_program::id(), false), // System program
+        ],
+        data: ix_data,
+    }
+}
+
+pub fn create_withdrawal_instruction(pda: &Pubkey, owner: &Pubkey, amount: u64) -> Instruction {
+    // Calculate Anchor discriminator for "withdraw"
+    let discriminator = {
+        let mut hasher = Sha256::new();
+        hasher.update(b"global:withdraw");
+        let result = hasher.finalize();
+        let mut disc = [0u8; 8];
+        disc.copy_from_slice(&result[..8]);
+        disc
+    };
+    
+    let mut ix_data = discriminator.to_vec();
+    ix_data.extend(amount.to_le_bytes());
+
+    Instruction {
+        program_id: get_delegation_program_id(),
+        accounts: vec![
+            AccountMeta::new(*owner, true),         // Owner must be a signer
+            AccountMeta::new(*pda, false),          // PDA account
+            AccountMeta::new_readonly(system_program::id(), false), // System program
         ],
         data: ix_data,
     }

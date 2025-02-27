@@ -1,7 +1,7 @@
 use {
-    crate::delegation::{create_delegation_instruction, find_delegation_pda, DelegatedAccount}, anyhow::{anyhow, Result}, borsh::BorshDeserialize, solana_client::rpc_client::RpcClient, solana_sdk::{
+    crate::delegation::{create_delegation_instruction, create_withdrawal_instruction, find_delegation_pda, DelegatedAccount, create_topup_instruction}, anyhow::{anyhow, Result}, borsh::BorshDeserialize, log, solana_client::rpc_client::RpcClient, solana_sdk::{
         account::{AccountSharedData, ReadableAccount}, message::Message, pubkey::Pubkey, signature::Keypair, signer::Signer, transaction::Transaction
-    }, std::collections::HashMap, log
+    }, std::collections::HashMap
 };
 
 pub struct DelegationService {
@@ -85,19 +85,39 @@ impl DelegationService {
         user: &Pubkey,
         amount: u64,
     ) -> Result<Transaction> {
-        let (pda, _) = find_delegation_pda(user);
-        
-        // Use the same method as the initial check
-        if let Some((_, delegation)) = self.get_or_fetch_pda(user)? {
+        let instruction = if let Some((_, delegation)) = self.get_or_fetch_pda(user)? {
             log::info!(
-                "Found existing delegation for {} with amount {}. Need to implement top-up.", 
+                "Found existing delegation for {} with amount {}. Creating top-up instruction.", 
                 user,
                 delegation.delegated_amount
             );
-            return Ok(Transaction::default());
-        }
+            create_topup_instruction(user, amount)
+        } else {
+            create_delegation_instruction(user, amount)
+        };
 
-        let instruction = create_delegation_instruction(user, amount);
+        let recent_blockhash = self.rpc_client.get_latest_blockhash()?;
+        
+        let message = Message::new_with_blockhash(
+            &[instruction],
+            Some(&self.signer.pubkey()),
+            &recent_blockhash
+        );
+        
+        let mut tx = Transaction::new_unsigned(message);
+        tx.try_sign(&[&self.signer], recent_blockhash)?;
+        
+        Ok(tx)
+    }
+
+    pub fn update_pda_state(&mut self, pda: Pubkey, account: AccountSharedData) {
+        self.pda_cache.insert(pda, account);
+    }
+
+
+    pub fn create_withdrawal_transaction(&mut self, pda: &Pubkey, owner: &Pubkey, amount: u64) -> Result<Transaction> {
+        let instruction = create_withdrawal_instruction(pda, owner, amount);
+        
         let recent_blockhash = self.rpc_client.get_latest_blockhash()?;
         let message = Message::new(&[instruction], Some(&self.signer.pubkey()));
         
@@ -105,9 +125,5 @@ impl DelegationService {
         tx.sign(&[&self.signer], recent_blockhash);
         
         Ok(tx)
-    }
-
-    pub fn update_pda_state(&mut self, pda: Pubkey, account: AccountSharedData) {
-        self.pda_cache.insert(pda, account);
     }
 } 

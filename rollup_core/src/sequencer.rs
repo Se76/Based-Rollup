@@ -26,6 +26,7 @@ use crate::{delegation::find_delegation_pda, delegation_service::DelegationServi
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
 use crate::errors::RollupErrors;
+use solana_client::nonblocking::rpc_client::RpcClient as NonblockingRpcClient;
 
 pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
@@ -44,7 +45,7 @@ pub async fn run( // async
     let mut rollup_account_loader = RollupAccountLoader::new(
         &rpc_client_temp,
     );
-    while let transaction = sequencer_receiver_channel.recv().unwrap() {
+    while let Ok(transaction) = sequencer_receiver_channel.recv() {
         let sender = transaction.message.account_keys[0];
         let amount = 1_000_000;
 
@@ -250,9 +251,40 @@ pub async fn run( // async
 
 
         // Call settle if transaction amount since last settle hits 10
-        if tx_counter >= 10 {
+        if tx_counter >= 2 {
             log::info!("Start bundling!");
-            //bundle transfer tx test
+            
+            // Get the current user's delegation and withdraw funds
+            let (pda, delegation) = {
+                let mut delegation_service = delegation_service.write().unwrap();
+                if let Some(delegation_info) = delegation_service.get_or_fetch_pda(&sender)? {
+                    delegation_info
+                } else {
+                    log::error!("No delegation found for {} during withdrawal", sender);
+                    return Ok(());
+                }
+            };
+
+            // Create and send withdrawal transaction
+            let withdrawal_tx = {
+                let mut delegation_service = delegation_service.write().unwrap();
+                delegation_service.create_withdrawal_transaction(&pda, &sender, delegation.delegated_amount)?
+            };
+
+            // Submit withdrawal transaction synchronously
+            match rpc_client_temp.send_and_confirm_transaction(&withdrawal_tx) {
+                Ok(sig) => {
+                    log::info!("Withdrew {} lamports from delegation {}, signature: {}", 
+                        delegation.delegated_amount, pda, sig);
+                },
+                Err(e) => {
+                    log::error!("Failed to withdraw from delegation {}: {}", pda, e);
+                }
+            }
+
+            // Reset counter after processing
+            tx_counter = 0;
+
             rollupdb_sender.send(RollupDBMessage {
                 lock_accounts: None,
                 add_processed_transaction: None,
