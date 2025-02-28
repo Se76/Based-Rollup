@@ -1,6 +1,6 @@
 use core::panic;
 use std::{
-    collections::{HashMap, HashSet}, sync::{Arc, RwLock}, time, vec
+    collections::{HashMap, HashSet}, ops::Index, str::FromStr, sync::{Arc, RwLock}, time, vec
 };
 
 use anyhow::{anyhow, Result};
@@ -10,12 +10,12 @@ use solana_client::{nonblocking::rpc_client as nonblocking_rpc_client, rpc_clien
 use solana_compute_budget::compute_budget::ComputeBudget;
 use solana_program_runtime::{
     invoke_context::{self, EnvironmentConfig, InvokeContext},
-    loaded_programs::{BlockRelation, ForkGraph, LoadProgramMetrics, ProgramCacheEntry, ProgramCacheForTxBatch, ProgramRuntimeEnvironments}, sysvar_cache,
+    loaded_programs::{BlockRelation, ForkGraph, LoadProgramMetrics, ProgramCache, ProgramCacheEntry, ProgramCacheForTxBatch, ProgramRuntimeEnvironments}, sysvar_cache,
 };
 
 use solana_bpf_loader_program::syscalls::create_program_runtime_environment_v1;
 use solana_sdk::{
-    account::{AccountSharedData, ReadableAccount}, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, instruction, program_pack::Pack, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, sysvar::instructions, transaction::{SanitizedTransaction, Transaction}, transaction_context::{IndexOfAccount, TransactionContext}
+    account::{AccountSharedData, ReadableAccount}, account_utils::StateMut, address_lookup_table::state, bpf_loader_upgradeable::UpgradeableLoaderState, clock::{Epoch, Slot}, feature_set::FeatureSet, fee::FeeStructure, hash::Hash, instruction, native_loader, program_pack::Pack, pubkey::Pubkey, rent::Rent, rent_collector::RentCollector, sysvar::instructions, transaction::{SanitizedTransaction, Transaction, TransactionError}, transaction_context::{IndexOfAccount, TransactionContext}
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
@@ -29,6 +29,7 @@ use crate::errors::RollupErrors;
 use crate::bundler::*;
 
 use spl_token::state::Account;
+// use bpf_loader_upgradeable::{self, UpgradeableLoaderState};
 
 pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
@@ -88,6 +89,45 @@ pub async fn run( // async
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
 
         if let Some(vec_of_accounts_data) = account_reciever.recv().await.unwrap() {
+
+            // let index = transaction.message.instructions[0].program_id_index;
+            // let (program_id, account_shared_data) = &vec_of_accounts_data[index as usize];
+            // log::info!("program_id__: {}", native_loader::check_id(&program_id));
+
+            // let owner = account_shared_data.owner();
+            // log::info!("owner__: {}", owner);
+            // log::info!("owner__: {}", native_loader::check_id(owner));
+
+            // let builtins_start_index = transaction.message.account_keys.len();
+            // if !vec_of_accounts_data
+            //     .get(builtins_start_index..)
+            //     .ok_or(TransactionError::ProgramAccountNotFound)?
+            //     .iter()
+            //     .any(|(key, _)| key == owner) {
+            //         log::info!("builtins not found");}
+        //             if let Some(owner_account) = callbacks.get_account_shared_data(owner_id) {
+        //                 if !native_loader::check_id(owner_account.owner())
+        //                     || !owner_account.executable()
+        //                 {
+        //                     error_metrics.invalid_program_for_execution += 1;
+        //                     return Err(TransactionError::InvalidProgramForExecution);
+        //                 }
+        //                 accumulate_and_check_loaded_account_data_size(
+        //                     &mut accumulated_accounts_data_size,
+        //                     owner_account.data().len(),
+        //                     compute_budget_limits.loaded_accounts_bytes,
+        //                     error_metrics,
+        //                 )?;
+        //                 accounts.push((*owner_id, owner_account));
+        //             } else {
+        //                 error_metrics.account_not_found += 1;
+        //                 return Err(TransactionError::ProgramAccountNotFound);
+        //             }
+        //                 }
+        // }
+        
+
+
             log::info!("received::: {:?}", vec_of_accounts_data);
             for (pubkey, account) in vec_of_accounts_data.iter() {
                 rollup_account_loader.add_account(*pubkey, account.clone());
@@ -98,6 +138,28 @@ pub async fn run( // async
             let data = rollup_account_loader.get_account_shared_data(pubkey);
             log::info!("data from an account: {:?}", data);
         }
+
+        // let program_id = transaction.message.account_keys[transaction.message.instructions[0].program_id_index as usize];
+        // log::info!("program_id____: {}", program_id);
+        // let program = rollup_account_loader.get_account_shared_data(&program_id).unwrap();
+        // if let Ok(UpgradeableLoaderState::Program {
+        //     programdata_address,
+        // }) = program.state() {
+        //     log::info!("programdata_address__: {}", programdata_address);
+        // }
+
+        // let pubkey_program_data = Pubkey::from_str("DoU57AYuPFu2QU514RktNPG22QhApEjnKxnBcu4BHDTY").unwrap();
+        // let programdata: AccountSharedData = rollup_account_loader.get_account_shared_data(&pubkey_program_data).unwrap();
+
+        // <AccountSharedData as solana_sdk::account_utils::StateMut<AccountSharedData>>::state(&programdata);
+        // if let Ok(UpgradeableLoaderState::ProgramData {
+        //     slot,
+        //     upgrade_authority_address,
+        // }) = programdata.state().unwrap() {
+        //     log::info!("programdataaa__: {:?}", upgrade_authority_address);
+        // }
+        // let state: Option<UpgradeableLoaderState> = programdata.state().unwrap();
+        // log::info!("programdataaa__: {:?}", state);
 
         let compute_budget = ComputeBudget::default();
         let feature_set = FeatureSet::all_enabled();

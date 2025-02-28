@@ -8,9 +8,8 @@
 use {
     log::info, solana_client::rpc_client::RpcClient, solana_sdk::{
         account::{AccountSharedData, ReadableAccount},
-        pubkey::Pubkey,
-    }, solana_svm::transaction_processing_callback::TransactionProcessingCallback, std::{collections::HashMap, sync::RwLock},
-    std::ops::IndexMut,
+        pubkey::{self, Pubkey},
+    }, solana_svm::transaction_processing_callback::TransactionProcessingCallback, std::{collections::HashMap, ops::IndexMut, str::FromStr, sync::RwLock},
 };
 
 // impl IndexMut for HashMap<K, V> {
@@ -33,17 +32,22 @@ impl<'a> RollupAccountLoader<'a> {
             cache: RwLock::new(HashMap::new()),
             rpc_client,
         };
-        let mut bpf_loader_account = rpc_client.get_account(&solana_sdk::bpf_loader::id()).unwrap();
-        let bpf_account_shared_data: AccountSharedData = bpf_loader_account.into();
-        cache.add_account(solana_sdk::bpf_loader::id(), bpf_account_shared_data);
+        // let mut bpf_loader_account = rpc_client.get_account(&solana_sdk::bpf_loader::id()).unwrap();
+        // let bpf_account_shared_data: AccountSharedData = bpf_loader_account.into();
+        // cache.add_account(solana_sdk::bpf_loader::id(), bpf_account_shared_data);
 
-        let mut token_program_account = rpc_client.get_account(&spl_token::ID).unwrap();
-        let token_program_account_shared_data: AccountSharedData = token_program_account.into();
-        cache.add_account(spl_token::ID, token_program_account_shared_data);
+        let mut associated_token_program_account = rpc_client.get_account(&solana_inline_spl::associated_token_account::id()).unwrap();
+        let associated_token_program_shared_data: AccountSharedData = associated_token_program_account.into();
+        cache.add_account(solana_inline_spl::associated_token_account::id(), associated_token_program_shared_data);
 
-        // let mut associated_token_program_account = rpc_client.get_account(&solana_inline_spl::associated_token_account::id()).unwrap();
-        // let associated_token_program_shared_data: AccountSharedData = associated_token_program_account.into();
-        // cache.add_account(solana_inline_spl::associated_token_account::id(), associated_token_program_shared_data);
+        let pubkey = Pubkey::from_str("6tT1LcW1aUJTVETUYsXh6U9vYyc98kfWZNc6B4yCDQ2P").unwrap();
+        let mut sol_account = rpc_client.get_account(&pubkey).unwrap();
+        let sol_account_shared_data: AccountSharedData = sol_account.into();
+
+        // let pubkey_program_data = Pubkey::from_str("DoU57AYuPFu2QU514RktNPG22QhApEjnKxnBcu4BHDTY").unwrap();
+        // let mut program_data_account = rpc_client.get_account(&pubkey_program_data).unwrap();
+        // let program_data_account_shared_data: AccountSharedData = program_data_account.into();
+        // cache.add_account(pubkey_program_data, program_data_account_shared_data);
         cache
     }
 
@@ -53,7 +57,7 @@ impl<'a> RollupAccountLoader<'a> {
         if res == false {
             map.insert(pubkey, modified_or_new_account);
             log::info!("newone: {:?}", map);
-        } else { // PROBLEM HERE!!! SOMEHOW DON'T FIND THIS ELSE
+        } else { 
         
             map.insert(pubkey, modified_or_new_account);
             // map.entry(pubkey)
@@ -132,5 +136,13 @@ impl TransactionProcessingCallback for RollupAccountLoader<'_> {
     fn account_matches_owners(&self, account: &Pubkey, owners: &[Pubkey]) -> Option<usize> {
         self.get_account_shared_data(account)
             .and_then(|account| owners.iter().position(|key| account.owner().eq(key)))
+    }
+
+    fn add_builtin_account(&self, name: &str, program_id: &Pubkey) {
+        let mut map = self.cache.write().unwrap();
+        let shared_data: AccountSharedData = self.rpc_client.get_account(program_id).unwrap().into();
+        map.insert(*program_id, shared_data);
+        log::info!("the builtin account was loaded from the rpcclient, {:?}", program_id);
+        log::info!("{:?}", map);
     }
 }
