@@ -18,6 +18,7 @@ mod sequencer;
 mod settle;
 mod processor;
 mod loader;
+mod bundler;
 mod errors;
 mod delegation;
 mod delegation_service;

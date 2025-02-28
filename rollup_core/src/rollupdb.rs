@@ -12,6 +12,7 @@ use std::{
 };
 use tokio::sync::oneshot;
 use crate::frontend::FrontendMessage;
+use crate::bundler::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct RollupDBMessage {
@@ -22,6 +23,8 @@ pub struct RollupDBMessage {
     pub add_settle_proof: Option<String>,
     pub get_account: Option<Pubkey>,
     // pub response: Option<bool>, 
+      //Testing purposes
+      pub bundle_tx: bool
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -47,6 +50,7 @@ impl RollupDB {
             pda_mappings: HashMap::new(),
         };
         while let Ok(message) = rollup_db_receiver.recv() {
+            log::info!("Received RollupDBMessage");
             if let Some(accounts_to_lock) = message.lock_accounts {
                 let mut information_to_send: Vec<(Pubkey, AccountSharedData)> = Vec::new();
                 log::info!("locking: {:?}", db.accounts_db);
@@ -84,6 +88,7 @@ impl RollupDB {
                 account_sender.send(Some(information_to_send)).await.unwrap();
                 // log::info!("2: {:#?}", db.locked_accounts);
             } else if let Some(get_this_hash_tx) = message.frontend_get_tx {
+                log::info!("Getting tx for frontend");
                 let req_tx = db.transactions.get(&get_this_hash_tx).unwrap();
 
                 frontend_sender
@@ -117,6 +122,21 @@ impl RollupDB {
 
                 // communication channel with database 
                 // communcation with the frontend 
+            }
+            else if message.bundle_tx {
+                log::info!("BUNDLING TX");
+                let mut tx_bundler = TransferBundler::new();
+                for (_, tx) in db.transactions.clone() {
+                    tx_bundler.bundle(tx);
+                }
+                let final_ixs = tx_bundler.generate_final();
+                log::info!("\nFinal Transfer Ixs:");
+                for ix in final_ixs{
+                    if let Some((from, to, amount)) = TransferBundler::parse_instruction(&ix){
+                    }
+                }
+                log::info!("BUNDLING DONE");
+                db.transactions.clear();
             }
             else if let Some(pubkey) = message.get_account {
                 if db.locked_accounts.contains_key(&pubkey) {

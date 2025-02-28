@@ -19,7 +19,6 @@ use std::{collections::HashMap, str::FromStr, time::Duration, fs};
 struct RollupTransaction {
     sender: String,
     sol_transaction: Transaction,
-    keypair_bytes: Vec<u8>,
 }
 
 #[derive(Serialize, Deserialize, Debug)]
@@ -49,39 +48,64 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Initial Sender {} balance: {} SOL", sender.pubkey(), sender_balance as f64 / 1_000_000_000.0);
     println!("Initial Receiver {} balance: {} SOL", receiver.pubkey(), receiver_balance as f64 / 1_000_000_000.0);
 
-    // Initialize delegation service
-    println!("\nInitializing delegation service...");
+    // Initialize delegation service for sender
+    println!("\nInitializing delegation service for sender...");
     let client = reqwest::Client::new();
     let response = client
         .post("http://127.0.0.1:8080/init_delegation_service")
         .body(sender.to_bytes().to_vec())
         .send()
         .await?;
-    
-    println!("Delegation service init response: {:?}", response.text().await?);
-    
+    println!("Sender delegation service init response: {:?}", response.text().await?);
+
     // Wait for initialization
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    // Send 10 transactions
-    for i in 0..2 {
-        println!("\nSending transaction {} of 2", i + 1);
-        
-        let test_tx = Transaction::new_signed_with_payer(
-            &[system_instruction::transfer(
-                &sender.pubkey(),
-                &receiver.pubkey(),
-                250_000_000, // 0.25 SOL
-            )],
-            Some(&sender.pubkey()),
-            &[&sender],
+    // Initialize delegation service for receiver
+    println!("\nInitializing delegation service for receiver...");
+    let response = client
+        .post("http://127.0.0.1:8080/init_delegation_service")
+        .body(receiver.to_bytes().to_vec())
+        .send()
+        .await?;
+    println!("Receiver delegation service init response: {:?}", response.text().await?);
+
+    // Wait for initialization
+    tokio::time::sleep(Duration::from_secs(2)).await;
+
+    // Create test transactions
+    let amounts = vec![5, -3,];
+    let mut txs = Vec::new();
+    
+    for amount in amounts {
+        let (from, to, lamports) = if amount > 0 {
+            (&sender, &receiver, amount as u64)
+        } else {
+            (&receiver, &sender, (-amount) as u64)
+        };
+
+        let ix = system_instruction::transfer(
+            &from.pubkey(),
+            &to.pubkey(),
+            lamports * (LAMPORTS_PER_SOL / 10)
+        );
+
+        let tx = Transaction::new_signed_with_payer(
+            &[ix],
+            Some(&from.pubkey()),
+            &[from],
             rpc_client.get_latest_blockhash().await?,
         );
 
+        txs.push(tx);
+    }
+
+    // Submit transactions
+    println!("\nSubmitting transactions...");
+    for (i, tx) in txs.into_iter().enumerate() {
         let rtx = RollupTransaction {
             sender: sender.pubkey().to_string(),
-            sol_transaction: test_tx,
-            keypair_bytes: sender.to_bytes().to_vec(),
+            sol_transaction: tx,
         };
 
         let response = client
@@ -89,10 +113,8 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
             .json(&rtx)
             .send()
             .await?;
-
+            
         println!("Transaction {} response: {:?}", i + 1, response.text().await?);
-        
-        // Small delay between transactions
         tokio::time::sleep(Duration::from_secs(1)).await;
     }
 

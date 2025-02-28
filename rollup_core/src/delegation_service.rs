@@ -7,16 +7,23 @@ use {
 pub struct DelegationService {
     rpc_client: RpcClient,
     pda_cache: HashMap<Pubkey, AccountSharedData>,
-    signer: Keypair,
+    signers: HashMap<Pubkey, Keypair>,  // Store multiple signers
 }
 
 impl DelegationService {
-    pub fn new(rpc_url: &str, signer: Keypair) -> Self {
+    pub fn new(rpc_url: &str, initial_signer: Keypair) -> Self {
+        let mut signers = HashMap::new();
+        signers.insert(initial_signer.pubkey(), initial_signer);
+        
         Self {
             rpc_client: RpcClient::new(rpc_url.to_string()),
             pda_cache: HashMap::new(),
-            signer,
+            signers,
         }
+    }
+
+    pub fn add_signer(&mut self, signer: Keypair) {
+        self.signers.insert(signer.pubkey(), signer);
     }
 
     pub fn get_or_fetch_pda(&mut self, user: &Pubkey) -> Result<Option<(Pubkey, DelegatedAccount)>> {
@@ -57,55 +64,33 @@ impl DelegationService {
         }
     }
 
-    pub fn verify_delegation_for_transaction(
-        &mut self,
-        user: &Pubkey,
-        required_amount: u64,
-    ) -> Result<Option<Pubkey>> {
-        if let Some((pda, delegation)) = self.get_or_fetch_pda(user)? {
-            log::info!(
-                "Verifying delegation for {}: current={}, required={}", 
-                user, 
-                delegation.delegated_amount, 
-                required_amount
-            );
-            if delegation.delegated_amount >= required_amount {
-                Ok(Some(pda))
-            } else {
-                Ok(None)
-            }
-        } else {
-            log::info!("No delegation found for {}", user);
-            Ok(None)
-        }
-    }
-
     pub fn create_delegation_transaction(
         &mut self,
         user: &Pubkey,
         amount: u64,
     ) -> Result<Transaction> {
-        let instruction = if let Some((_, delegation)) = self.get_or_fetch_pda(user)? {
-            log::info!(
-                "Found existing delegation for {} with amount {}. Creating top-up instruction.", 
-                user,
-                delegation.delegated_amount
-            );
+        // First check PDA existence
+        let has_existing = self.get_or_fetch_pda(user)?.is_some();
+        
+        // Then get signer after PDA check
+        let signer = self.signers.get(user)
+            .ok_or_else(|| anyhow!("No delegation signer found for {}", user))?;
+
+        let instruction = if has_existing {
             create_topup_instruction(user, amount)
         } else {
             create_delegation_instruction(user, amount)
         };
 
         let recent_blockhash = self.rpc_client.get_latest_blockhash()?;
-        
         let message = Message::new_with_blockhash(
             &[instruction],
-            Some(&self.signer.pubkey()),
+            Some(&signer.pubkey()),
             &recent_blockhash
         );
         
         let mut tx = Transaction::new_unsigned(message);
-        tx.try_sign(&[&self.signer], recent_blockhash)?;
+        tx.try_sign(&[signer], recent_blockhash)?;
         
         Ok(tx)
     }
@@ -114,15 +99,18 @@ impl DelegationService {
         self.pda_cache.insert(pda, account);
     }
 
-
     pub fn create_withdrawal_transaction(&mut self, pda: &Pubkey, owner: &Pubkey, amount: u64) -> Result<Transaction> {
         let instruction = create_withdrawal_instruction(pda, owner, amount);
         
+        // Get the signer for the owner
+        let signer = self.signers.get(owner)
+            .ok_or_else(|| anyhow!("No delegation signer found for {}", owner))?;
+        
         let recent_blockhash = self.rpc_client.get_latest_blockhash()?;
-        let message = Message::new(&[instruction], Some(&self.signer.pubkey()));
+        let message = Message::new(&[instruction], Some(&signer.pubkey()));
         
         let mut tx = Transaction::new_unsigned(message);
-        tx.sign(&[&self.signer], recent_blockhash);
+        tx.sign(&[signer], recent_blockhash);
         
         Ok(tx)
     }

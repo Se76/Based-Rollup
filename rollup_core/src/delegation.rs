@@ -52,9 +52,9 @@ pub fn create_delegation_instruction(owner: &Pubkey, amount: u64) -> Instruction
     Instruction {
         program_id: get_delegation_program_id(),
         accounts: vec![
-            AccountMeta::new(*owner, true),              // Signer and fee payer
-            AccountMeta::new(pda, false),                // PDA to be initialized
-            AccountMeta::new_readonly(system_program::id(), false), // System program for init
+            AccountMeta::new(*owner, true),              // Owner must be signer
+            AccountMeta::new(pda, false),                // PDA account
+            AccountMeta::new_readonly(system_program::id(), false), // System program
         ],
         data: ix_data,
     }

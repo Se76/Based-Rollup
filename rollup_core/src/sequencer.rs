@@ -25,8 +25,9 @@ use tokio::time::{sleep, Duration};
 use crate::{delegation::find_delegation_pda, delegation_service::DelegationService, rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
+use crate::bundler::*;
 use crate::errors::RollupErrors;
-use solana_client::nonblocking::rpc_client::RpcClient as NonblockingRpcClient;
+
 
 pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
@@ -34,9 +35,7 @@ pub async fn run( // async
     account_reciever: Receiver<Option<Vec<(Pubkey, AccountSharedData)>>>,
     receiver_locked_accounts: Receiver<bool>,
     delegation_service: Arc<RwLock<DelegationService>>,
-    // rx: tokio::sync::oneshot::Receiver<std::option::Option<bool>>  // sync_ver_sender
 ) -> Result<()> {
-    // let (tx, rx) = oneshot::channel(); // Create a channel to wait for response
 
     let mut tx_counter = 0u32;
 
@@ -114,6 +113,7 @@ pub async fn run( // async
                     add_new_data: None,
                     add_processed_transaction: None,
                     get_account: Some(*pubkey),
+                    bundle_tx: false
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
@@ -134,6 +134,7 @@ pub async fn run( // async
                 add_processed_transaction: None,
                 get_account: None,
                 // response: Some(true), 
+                bundle_tx: false
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
@@ -244,9 +245,23 @@ pub async fn run( // async
                 frontend_get_tx: None,
                 add_settle_proof: None,
                 get_account: None,
+                bundle_tx: false
             })
             
             .unwrap();
+
+                    //View sent processed tx details
+        let ixs = get_transaction_instructions(&transaction);
+        let acc_keys: &[Pubkey] = &transaction.message.account_keys;
+        if let Some((from, to, amount)) = TransferBundler::parse_compiled_instruction(&ixs[0], acc_keys) {
+                log::info!("
+                    Transaction Info\n
+                    From: {from:?}\n
+                    To: {to:?}\n
+                    Amount: {amount}
+
+                ")
+            }
 
 
 
@@ -292,6 +307,7 @@ pub async fn run( // async
                 get_account: None, 
                 add_new_data: None,
                 frontend_get_tx: None,
+                bundle_tx: true
             }).unwrap();
         }
     }
