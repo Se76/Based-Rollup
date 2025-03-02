@@ -55,8 +55,8 @@ pub async fn run( // async
                 Some((_, delegation)) => {
                     // Log current and required amounts
                     log::info!(
-                        "Checking delegation: current amount={}, required amount={}", 
-                        delegation.delegated_amount, 
+                        "Checking delegation: current amount={}, required amount={}",
+                        delegation.delegated_amount,
                         amount
                     );
                     delegation.delegated_amount < amount
@@ -87,7 +87,7 @@ pub async fn run( // async
                     log::info!("Created delegation with signature: {}", sig);
                     // Wait for confirmation
                     tokio::time::sleep(Duration::from_secs(2)).await;
-                    
+
                     // Update cache after successful delegation
                     let (pda, _) = find_delegation_pda(&sender);
                     if let Ok(account) = rpc_client_temp.get_account(&pda) {
@@ -115,7 +115,7 @@ pub async fn run( // async
                     get_account: Some(*pubkey),
                     bundle_tx: false
             })
-            
+
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
                 if receiver_locked_accounts.recv().await.unwrap() == false {
                     break;
@@ -133,10 +133,10 @@ pub async fn run( // async
                 add_new_data: None,
                 add_processed_transaction: None,
                 get_account: None,
-                // response: Some(true), 
+                // response: Some(true),
                 bundle_tx: false
             })
-            
+
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
 
         if let Some(vec_of_accounts_data) = account_reciever.recv().await.unwrap() {
@@ -168,7 +168,7 @@ pub async fn run( // async
 
         log::info!("{:?}", sanitized.clone());
 
-        // let needed_programs: Vec<(Pubkey, AccountSharedData)> = 
+        // let needed_programs: Vec<(Pubkey, AccountSharedData)> =
         // accounts_data
         // .iter()
         // .filter(|(pubkey, account)| account.executable())
@@ -184,17 +184,15 @@ pub async fn run( // async
         );
 
         let checks = get_transaction_check_results(1, fee_structure.lamports_per_signature);
-        let sanitized_transaction = &[sanitized.unwrap()]; 
+        let sanitized_transaction = &[sanitized.unwrap()];
 
         let processing_environment = TransactionProcessingEnvironment {
             blockhash: Hash::default(),
-            epoch_total_stake: 0u64,
-            //epoch_vote_accounts: None,
+            epoch_total_stake: Some(0u64),
+            epoch_vote_accounts: None,
             feature_set: Arc::new(feature_set),
-            //fee_structure: Some(&fee_structure),
-            //lamports_per_signature: fee_structure.lamports_per_signature,
-            blockhash_lamports_per_signature: fee_structure.lamports_per_signature,
-            fee_lamports_per_signature: fee_structure.lamports_per_signature,
+            fee_structure: Some(&fee_structure),
+            lamports_per_signature: fee_structure.lamports_per_signature,
             rent_collector: Some(&rent_collector),
         };
 
@@ -204,16 +202,16 @@ pub async fn run( // async
         };
 
         let status = processor.load_and_execute_sanitized_transactions(
-            &rollup_account_loader, 
-            sanitized_transaction, 
-            checks, 
-            &processing_environment, 
+            &rollup_account_loader,
+            sanitized_transaction,
+            checks,
+            &processing_environment,
             &processing_config
         );
         log::info!("{:#?}", status.processing_results);
         log::info!("error_metrics: {:#?}", status.error_metrics);
 
-        let data_new = 
+        let data_new =
         status
         .processing_results
         .iter()
@@ -221,15 +219,15 @@ pub async fn run( // async
             println!("Executed transaction:");
             log::info!("Executed transaction");
             let enum_one = res.as_ref().unwrap();
-    
+
             match enum_one {
                 ProcessedTransaction::Executed(tx) => {
                     println!("Executed transaction: {:?}", tx.loaded_transaction.accounts);
-                    Some(tx.loaded_transaction.accounts.clone()) 
+                    Some(tx.loaded_transaction.accounts.clone())
                 }
                 ProcessedTransaction::FeesOnly(tx) => {
                     println!("Fees-only transaction: {:?}", tx);
-                    None 
+                    None
                 }
             }
         }).collect::<Vec<Option<Vec<(Pubkey, AccountSharedData)>>>>();
@@ -247,7 +245,7 @@ pub async fn run( // async
                 get_account: None,
                 bundle_tx: false
             })
-            
+
             .unwrap();
 
                     //View sent processed tx details
@@ -268,7 +266,7 @@ pub async fn run( // async
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 2 {
             log::info!("Start bundling!");
-            
+
             // Get the current user's delegation and withdraw funds
             let (pda, delegation) = {
                 let mut delegation_service = delegation_service.write().unwrap();
@@ -289,7 +287,7 @@ pub async fn run( // async
             // Submit withdrawal transaction synchronously
             match rpc_client_temp.send_and_confirm_transaction(&withdrawal_tx) {
                 Ok(sig) => {
-                    log::info!("Withdrew {} lamports from delegation {}, signature: {}", 
+                    log::info!("Withdrew {} lamports from delegation {}, signature: {}",
                         delegation.delegated_amount, pda, sig);
                 },
                 Err(e) => {
@@ -304,7 +302,7 @@ pub async fn run( // async
                 lock_accounts: None,
                 add_processed_transaction: None,
                 add_settle_proof: None,
-                get_account: None, 
+                get_account: None,
                 add_new_data: None,
                 frontend_get_tx: None,
                 bundle_tx: true
@@ -352,11 +350,11 @@ pub async fn run( // async
         // let rent = Rent::default();
 
 
- 
+
     //         //****************************************************************************************************/
-    //     // let instructions = &transaction.message.instructions; 
+    //     // let instructions = &transaction.message.instructions;
     //     // // let index_array_of_program_pubkeys = Vec::with_capacity(instructions.len());
-    //     // let program_ids = &transaction.message.account_keys; 
+    //     // let program_ids = &transaction.message.account_keys;
 
     //     // let needed_programs: Vec<&Pubkey> = instructions
     //     //         .iter()
@@ -366,13 +364,13 @@ pub async fn run( // async
     //         //****************************************************************************************************/
 
     //     let mut transaction_context = TransactionContext::new(
-    //         accounts_data, 
-    //         Rent::default(), 
+    //         accounts_data,
+    //         Rent::default(),
     //         compute_budget.max_instruction_stack_depth,
     //     compute_budget.max_instruction_trace_length,
     // );
     //     // transaction_context.get_current_instruction_context().unwrap().get_index_of_program_account_in_transaction(2).unwrap();
-    //     // transaction_context.push(); 
+    //     // transaction_context.push();
 
 
     //         // here we have to load them somehow
@@ -383,15 +381,15 @@ pub async fn run( // async
     //     );
 
     //     let mut prog_cache = ProgramCacheForTxBatch::new(
-    //         Slot::default(), 
+    //         Slot::default(),
     //         ProgramRuntimeEnvironments {
     //             program_runtime_v1: runtime_env.clone(),
     //             program_runtime_v2: runtime_env,
     //         },
-    //         None, 
+    //         None,
     //         Epoch::default(),
     //     );
-        
+
 
     //     // prog_cache.replenish(accounts_data., entry)
 
@@ -416,7 +414,7 @@ pub async fn run( // async
     //     //     rent_collector: Some(&rent_collector),
     //     // };
 
-        
+
 
     //     // for (pubkey, account) in rollup_account_loader.cache.read().unwrap().iter() {
     //     //     let _p = rollup_account_loader.get_account_shared_data(pubkey);
@@ -426,7 +424,7 @@ pub async fn run( // async
     //     // let pew = cache.keys().next().cloned().unwrap();
     //     // let owner = cache.get(&pew).unwrap().owner();
     //     // log::debug!("pubkey: {owner:?}");
-        
+
 
     //     let program_cache_entry = load_program_with_pubkey(
     //         &rollup_account_loader,
@@ -453,11 +451,11 @@ pub async fn run( // async
 
     //     // let instruction_ctx_next = transaction_context.get_next_instruction_context();
     //     // // let instruction_ctx = transaction_context.get_next_instruction_context();
-        
+
     //     // log::debug!("instruction_ctx: {instruction_ctx_next:?}");
 
 
-        
+
     //     let mut invoke_context = InvokeContext::new(
     //        &mut transaction_context,
     //        &mut prog_cache,
@@ -465,7 +463,7 @@ pub async fn run( // async
     //        None,
     //        compute_budget.to_owned()
     //     );
-        
+
 
     //     // let instruction_ctx_2 = invoke_context.transaction_context.get_current_instruction_context();
     //     // log::debug!("instruction_ctx_2: {instruction_ctx_2:?}");
@@ -473,17 +471,17 @@ pub async fn run( // async
     //     // log::debug!("instruction_ctx_height: {instruction_ctx_height}");
     //     // let instruction_ctx_height = invoke_context.transaction_context.get_instruction_context_at_index_in_trace(0);
     //     // log::debug!("instruction_ctx_height: {instruction_ctx_height:?}");
-        
 
 
 
-    //     // HAS TO BE AN ADDRESS OF THE PROGRAM 
+
+    //     // HAS TO BE AN ADDRESS OF THE PROGRAM
 
     //     // invoke_context.program_cache_for_tx_batch.replenish(key, program_cache_entry.unwrap());
 
 
 
-        
+
 
 
 
@@ -497,7 +495,7 @@ pub async fn run( // async
 
     //     let program_indices: Vec<IndexOfAccount> = vec![0];
     //     let result_msg = MessageProcessor::process_message(
-    //         &sanitized.unwrap().message().to_owned(), // ERROR WITH SOLANA_SVM VERSION 
+    //         &sanitized.unwrap().message().to_owned(), // ERROR WITH SOLANA_SVM VERSION
     //         // ?should be fixed with help of chagning versions of solana-svm ?
     //         // &sanitized.unwrap().message().to_owned(),
     //         &[program_indices],  // TODO: automotize this process
@@ -511,7 +509,7 @@ pub async fn run( // async
 
 
 
-   
+
 
 
 // TWO WAYS -> TRANSACTIONBATCHPROCCESOR OR MESSAGEPROCESSOR
@@ -520,11 +518,11 @@ pub async fn run( // async
 
 // The question of how often to pull/push the state out of mainnet state
 
-// PDA as a *treasury , to solve problem with sol that could disapear from account 
+// PDA as a *treasury , to solve problem with sol that could disapear from account
 
-// to create kind of a program that will lock funds on mainnet 
+// to create kind of a program that will lock funds on mainnet
 
-// MagicBlock relyaing on their infrustructure 
+// MagicBlock relyaing on their infrustructure
 
 // To make a buffer between sending two transactions
 

@@ -39,15 +39,15 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
     compute_budget: &ComputeBudget,
     fork_graph: Arc<RwLock<RollupForkGraph>>,
 ) -> TransactionBatchProcessor<RollupForkGraph> {
-    let processor = TransactionBatchProcessor::<RollupForkGraph>::new(
+    let processor = TransactionBatchProcessor::<RollupForkGraph>::new_uninitialized(
         /* slot */ 1,
-        /* epoch */ 1, 
-        Arc::downgrade(&fork_graph),
-        Some(Arc::new(
-            create_program_runtime_environment_v1(feature_set, compute_budget, false, false)
-                .unwrap(),
-        )),
-        None,
+        /* epoch */ 1,
+        // Arc::downgrade(&fork_graph),
+        // Some(Arc::new(
+        //     create_program_runtime_environment_v1(feature_set, compute_budget, false, false)
+        //         .unwrap(),
+        // )),
+        // None,
     );
 
     processor.program_cache.write().unwrap().set_fork_graph(Arc::downgrade(&fork_graph));
@@ -60,7 +60,7 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
     processor.add_builtin(
         callbacks,
         solana_system_program::id(),
-        "system_program", 
+        "system_program",
         ProgramCacheEntry::new_builtin(0, b"system_program".len(), system_processor::Entrypoint::vm),
     );
 
@@ -75,10 +75,10 @@ pub(crate) fn get_transaction_check_results(
     lamports_per_signature: u64,
 ) -> Vec<transaction::Result<CheckedTransactionDetails>> {
     vec![
-        transaction::Result::Ok(CheckedTransactionDetails::new(
-            None,
-            lamports_per_signature
-        ));
+        transaction::Result::Ok(CheckedTransactionDetails {
+            nonce: None,
+            lamports_per_signature,
+        });
         len
     ]
 }
