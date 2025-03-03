@@ -49,29 +49,29 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("Initial Sender {} balance: {} SOL", sender.pubkey(), sender_balance as f64 / 1_000_000_000.0);
     println!("Initial Receiver {} balance: {} SOL", receiver.pubkey(), receiver_balance as f64 / 1_000_000_000.0);
 
-    // Initialize delegation service for sender
-    println!("\nInitializing delegation service for sender...");
+    // Initialize delegation service with sender
+    println!("\nInitializing delegation service...");
     let client = reqwest::Client::new();
     let response = client
         .post("http://127.0.0.1:8080/init_delegation_service")
         .body(sender.to_bytes().to_vec())
         .send()
         .await?;
-    println!("Sender delegation service init response: {:?}", response.text().await?);
+    println!("Delegation service init response: {:?}", response.text().await?);
 
     // Wait for initialization
     tokio::time::sleep(Duration::from_secs(2)).await;
 
-    // Initialize delegation service for receiver
-    println!("\nInitializing delegation service for receiver...");
+    // Add receiver to delegation service
+    println!("\nAdding receiver to delegation service...");
     let response = client
-        .post("http://127.0.0.1:8080/init_delegation_service")
+        .post("http://127.0.0.1:8080/add_delegation_signer")
         .body(receiver.to_bytes().to_vec())
         .send()
         .await?;
-    println!("Receiver delegation service init response: {:?}", response.text().await?);
+    println!("Added receiver to delegation service: {:?}", response.text().await?);
 
-    // Wait for initialization
+    // Wait for update
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Create test transactions
