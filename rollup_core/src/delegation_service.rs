@@ -71,7 +71,7 @@ impl DelegationService {
     ) -> Result<Transaction> {
         // First check PDA existence
         let has_existing = self.get_or_fetch_pda(user)?.is_some();
-        
+        log::info!("create:::    signers are here: {:?}", self.signers);
         // Then get signer after PDA check
         let signer = self.signers.get(user)
             .ok_or_else(|| anyhow!("No delegation signer found for {}", user))?;
@@ -101,7 +101,7 @@ impl DelegationService {
 
     pub fn create_withdrawal_transaction(&mut self, pda: &Pubkey, owner: &Pubkey, amount: u64) -> Result<Transaction> {
         let instruction = create_withdrawal_instruction(pda, owner, amount);
-        
+        log::info!("signers are here: {:?}", self.signers);
         // Get the signer for the owner
         let signer = self.signers.get(owner)
             .ok_or_else(|| anyhow!("No delegation signer found for {}", owner))?;
@@ -113,5 +113,8 @@ impl DelegationService {
         tx.sign(&[signer], recent_blockhash);
         
         Ok(tx)
+    }
+    pub fn get_keypair(&self, user: &Pubkey) -> Option<&Keypair> {
+        self.signers.get(user)
     }
 } 

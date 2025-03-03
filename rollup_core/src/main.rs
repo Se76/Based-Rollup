@@ -53,6 +53,7 @@ fn main() { // async
     ));
 
     let delegation_service_clone = delegation_service.clone();
+    let delegation_service_clone_1 = delegation_service.clone();
     
 
     let asdserver_thread = thread::spawn(|| {
@@ -71,12 +72,14 @@ fn main() { // async
                 delegation_service_clone,
             ).await.unwrap()
         });
-        rt.block_on(RollupDB::run(rollupdb_receiver, fe_2, account_sender, sender_locked_account));
+
+        
+        rt.block_on(RollupDB::run(rollupdb_receiver, fe_2, account_sender, sender_locked_account, delegation_service_clone_1));
     });
    
 
      // Spawn the Actix Web server in a separate thread
-    let server_thread = thread::spawn(|| {
+    let server_thread = thread::spawn( || {
             // Create a separate Tokio runtime for Actix Web
         let rt2 = Builder::new_multi_thread()
             .worker_threads(4)
@@ -109,6 +112,8 @@ fn main() { // async
                             let keypair = Keypair::from_bytes(&body).unwrap();
                             *delegation_service.write().unwrap() = 
                                 DelegationService::new("https://api.devnet.solana.com", keypair);
+                            log::info!("Delegation service initialized___");
+                            // log::info!("{:?}", )
                             HttpResponse::Ok()
                         })
                     },

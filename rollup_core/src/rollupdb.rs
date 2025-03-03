@@ -8,10 +8,10 @@ use solana_sdk::{
 use crossbeam::channel::{Receiver as CBReceiver, Sender as CBSender};
 use std::{
     collections::{HashMap, HashSet},
-    default,
+    default, sync::{Arc, RwLock},
 };
 use tokio::sync::oneshot;
-use crate::frontend::FrontendMessage;
+use crate::{delegation_service::DelegationService, frontend::FrontendMessage, settle::settle_state};
 use crate::bundler::*;
 
 #[derive(Serialize, Deserialize)]
@@ -42,6 +42,7 @@ impl RollupDB {
         frontend_sender: Sender<FrontendMessage>,
         account_sender: Sender<Option<Vec<(Pubkey, AccountSharedData)>>>,
         sender_locked_accounts: Sender<bool>,
+        delegation_service: Arc<RwLock<DelegationService>>,
     ) {
         let mut db = RollupDB {
             accounts_db: HashMap::new(),
@@ -130,6 +131,13 @@ impl RollupDB {
                     tx_bundler.bundle(tx);
                 }
                 let final_ixs = tx_bundler.generate_final();
+
+                // let pubkey_user = &final_ixs[0].accounts[0].pubkey;
+                // let del_service = delegation_service.read().unwrap();
+                // let user_keypair = del_service.get_keypair(pubkey_user).unwrap();
+
+                // settle_state(&final_ixs , user_keypair).await.unwrap();
+
                 log::info!("\nFinal Transfer Ixs:");
                 for ix in final_ixs{
                     if let Some((from, to, amount)) = TransferBundler::parse_instruction(&ix){
@@ -137,6 +145,8 @@ impl RollupDB {
                 }
                 log::info!("BUNDLING DONE");
                 db.transactions.clear();
+
+
             }
             else if let Some(pubkey) = message.get_account {
                 if db.locked_accounts.contains_key(&pubkey) {

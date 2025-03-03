@@ -46,7 +46,7 @@ pub async fn run( // async
     );
     while let Ok(transaction) = sequencer_receiver_channel.recv() {
         let sender = transaction.message.account_keys[0];
-        let amount = 1_000_000;
+        let amount = 1_000_000_000;
 
          // Check delegation status first
          let needs_delegation = {
@@ -267,6 +267,18 @@ pub async fn run( // async
 
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 2 {
+            rollupdb_sender.send(RollupDBMessage {
+                lock_accounts: None,
+                add_processed_transaction: None,
+                add_settle_proof: None,
+                get_account: None, 
+                add_new_data: None,
+                frontend_get_tx: None,
+                bundle_tx: true
+            }).unwrap();
+
+            
+
             log::info!("Start bundling!");
             
             // Get the current user's delegation and withdraw funds
@@ -300,15 +312,6 @@ pub async fn run( // async
             // Reset counter after processing
             tx_counter = 0;
 
-            rollupdb_sender.send(RollupDBMessage {
-                lock_accounts: None,
-                add_processed_transaction: None,
-                add_settle_proof: None,
-                get_account: None, 
-                add_new_data: None,
-                frontend_get_tx: None,
-                bundle_tx: true
-            }).unwrap();
         }
     }
     Ok(())

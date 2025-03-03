@@ -38,6 +38,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Load existing keypairs from files
     let sender = Keypair::from_bytes(&fs::read("keys/sender.json")?)?;
     let receiver = Keypair::from_bytes(&fs::read("keys/receiver.json")?)?;
+    println!("rec: {:?}", receiver.pubkey());
     
     // Connect to devnet
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".to_string());
