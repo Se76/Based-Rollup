@@ -132,16 +132,12 @@ impl RollupDB {
                 // communcation with the frontend 
             } else if message.bundle_tx {
                 log::info!("BUNDLING TX");
-                let mut tx_bundler = TransferBundler::new();
+                let mut tx_bundler = TransferBundler::new(RpcClient::new("https://api.devnet.solana.com".to_string()));
                 for (_, tx) in db.transactions.clone() {
                     tx_bundler.bundle(tx);
                 }
                 let final_ixs = tx_bundler.generate_final();
                 log::info!("\nFinal Transfer Ixs:");
-                for ix in final_ixs{
-                    if let Some((from, to, amount)) = TransferBundler::parse_instruction(&ix){
-                    }
-                }
                 log::info!("BUNDLING DONE");
                 db.transactions.clear();
             }

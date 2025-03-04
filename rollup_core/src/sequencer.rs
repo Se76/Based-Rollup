@@ -220,6 +220,17 @@ pub async fn run( // async
         );
         log::info!("{:#?}", status.processing_results);
         log::info!("error_metrics: {:#?}", status.error_metrics);
+        //TO BE REMOVED
+        let acc_keys = &transaction.message.account_keys[..];
+        let ix = transaction.message.instructions[0].clone();
+        if is_token_transfer_ix(&ix, acc_keys){
+            log::info!("TOKEN TRANSFER DETECTED!");
+            if let Some((from, to, mint, amount)) = TransferBundler::parse_token_transfer(&ix, acc_keys, &rpc_client_temp){
+                log::info!("\nFROM: {from}\nTO: {to}\nAMOUNT: {amount}\nMINT: {mint}");
+            }
+        } else{
+            log::info!("NO TOKEN TRANSFER DETECTED!");
+        }
 
         let data_new = 
         status
@@ -260,31 +271,31 @@ pub async fn run( // async
             .unwrap();
 
         //View sent processed tx details
-        let ixs = get_transaction_instructions(&transaction);
-        let acc_keys: &[Pubkey] = &transaction.message.account_keys;
-        if let Some((from, to, amount)) = TransferBundler::parse_compiled_instruction(&ixs[0], acc_keys) {
-                log::info!("
-                    Transaction Info\n
-                    From: {from:?}\n
-                    To: {to:?}\n
-                    Amount: {amount}
+        // let ixs = get_transaction_instructions(&transaction);
+        // let acc_keys: &[Pubkey] = &transaction.message.account_keys;
+        // if let Some((from, to, amount)) = TransferBundler::parse_compiled_instruction(&ixs[0], acc_keys) {
+        //         log::info!("
+        //             Transaction Info\n
+        //             From: {from:?}\n
+        //             To: {to:?}\n
+        //             Amount: {amount}
 
-                ")
-            }
+        //         ")
+        //     }
 
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
-            // log::info!("Start bundling!");
-            // //bundle transfer tx test
-            // rollupdb_sender.send(RollupDBMessage {
-            //     lock_accounts: None,
-            //     add_processed_transaction: None,
-            //     add_settle_proof: None,
-            //     get_account: None, 
-            //     add_new_data: None,
-            //     frontend_get_tx: None,
-            //     bundle_tx: true
-            // }).unwrap();
+            log::info!("Start bundling!");
+            //bundle transfer tx test
+            rollupdb_sender.send(RollupDBMessage {
+                lock_accounts: None,
+                add_processed_transaction: None,
+                add_settle_proof: None,
+                get_account: None, 
+                add_new_data: None,
+                frontend_get_tx: None,
+                bundle_tx: true
+            }).unwrap();
             tx_counter = 0u32;
         }
     }

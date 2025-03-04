@@ -38,11 +38,11 @@ async fn main() -> Result<()> {
     let keypair3 = signer::keypair::read_keypair_file(path3.to_string()).unwrap();
     let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
 
-    let tokenProgramData = rpc_client.get_account_data(&spl_token::ID).await?;
-    let tokenProgram = rpc_client.get_account(&spl_token::ID).await?;
+    // let tokenProgramData = rpc_client.get_account_data(&spl_token::ID).await?;
+    // let tokenProgram = rpc_client.get_account(&spl_token::ID).await?;
 
-    println!("token program data: {:#?}", tokenProgramData);
-    println!("token program: {:#?}", tokenProgram);
+    // println!("token program data: {:#?}", tokenProgramData);
+    // println!("token program: {:#?}", tokenProgram);
 
     // let ix =
     //     system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), 1 * (LAMPORTS_PER_SOL/4));
@@ -89,16 +89,17 @@ async fn main() -> Result<()> {
     );
 
     let ix2 =
-        spl_token::instruction::transfer_checked
+        spl_token::instruction::transfer
         (
             &spl_token::id(),
             &ata_1,
-            &NATIVE_MINT,
+            // &NATIVE_MINT,
             &ata_2,
+            // &keypair.pubkey(),
             &keypair.pubkey(), 
             &[&keypair.pubkey()],
-            LAMPORTS_PER_SOL/4,
-            9,
+            LAMPORTS_PER_SOL/5,
+            // 9,
         ).unwrap();
 
     let ix2_token_2022 =
@@ -172,7 +173,7 @@ async fn main() -> Result<()> {
 
     let rtx = RollupTransaction {
         sender: "Me".into(),
-        sol_transaction: tx_other,
+        sol_transaction: tx2_token_2022,
     };
     let submit_transaction = client
     .post("http://127.0.0.1:8080/submit_transaction")
@@ -190,7 +191,23 @@ async fn main() -> Result<()> {
 
 
 
+    let latest_blockhash = rpc_client.get_latest_blockhash().await.unwrap();
+    for _ in 0..9{
+        let loop_ix = gen_token_transfer_tx(path.into(), keypair2.pubkey().to_string(), NATIVE_MINT.to_string(), 1000000, latest_blockhash).await;
+        let rtx = RollupTransaction {
+            sender: "Me".into(),
+            sol_transaction: loop_ix
+        };
+        let submit_transaction = client
+        .post("http://127.0.0.1:8080/submit_transaction")
+        .json(&rtx)
+        .send()
+        .await?;
+        // .json()
+        // .await?;
 
+        println!("{submit_transaction:#?}");
+    }
 
     // let serialized_rollup_transaction = serde_json::to_string(&rtx)?;
 
@@ -280,5 +297,49 @@ async fn gen_transfer_tx(path1: String, path2: String, amount: u64) -> Transacti
         Some(&keypair2.pubkey()),
         &[&keypair2],
         rpc_client.get_latest_blockhash().await.unwrap(),
+    )
+}
+
+async fn gen_token_transfer_tx(
+    sender_key_path: String,
+    recipient_pubkey: String,
+    mint_pubkey: String,
+    amount: u64,
+    latest_blockhash: Hash
+) -> Transaction {
+    println!("Amount: {amount}");
+
+    let sender_keypair = signer::keypair::read_keypair_file(sender_key_path).unwrap();
+    let recipient_pubkey = recipient_pubkey.parse::<Pubkey>().unwrap();
+    let mint_pubkey = mint_pubkey.parse::<Pubkey>().unwrap();
+
+    let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
+
+    // Get associated token accounts
+    let sender_token_account = spl_associated_token_account::get_associated_token_address(
+        &sender_keypair.pubkey(),
+        &mint_pubkey
+    );
+    let recipient_token_account = spl_associated_token_account::get_associated_token_address(
+        &recipient_pubkey,
+        &mint_pubkey
+    );
+
+    // Create the transfer instruction
+    let transfer_ix = spl_token::instruction::transfer(
+        &spl_token::ID,
+        &sender_token_account,
+        &recipient_token_account,
+        &sender_keypair.pubkey(),
+        &[],
+        amount,
+    ).unwrap();
+
+    // Create and sign the transaction
+    Transaction::new_signed_with_payer(
+        &[transfer_ix],
+        Some(&sender_keypair.pubkey()),
+        &[&sender_keypair],
+        latest_blockhash,
     )
 }
