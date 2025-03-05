@@ -48,8 +48,8 @@ pub async fn run( // async
         let sender = transaction.message.account_keys[0];
         let amount = 1_000_000_000;
 
-         // Check delegation status first
-         let needs_delegation = {
+        // Check delegation status first
+        let needs_delegation = {
             let mut delegation_service = delegation_service.write().unwrap();
             match delegation_service.get_or_fetch_pda(&sender)? {
                 Some((_, delegation)) => {
@@ -266,7 +266,7 @@ pub async fn run( // async
 
 
         // Call settle if transaction amount since last settle hits 10
-        if tx_counter >= 2 {
+        if tx_counter >= 10 {
             rollupdb_sender.send(RollupDBMessage {
                 lock_accounts: None,
                 add_processed_transaction: None,
@@ -277,7 +277,7 @@ pub async fn run( // async
                 bundle_tx: true
             }).unwrap();
 
-            
+
 
             log::info!("Start bundling!");
             

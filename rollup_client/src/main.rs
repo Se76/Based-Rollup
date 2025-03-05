@@ -65,7 +65,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     // Initialize delegation service for receiver
     println!("\nInitializing delegation service for receiver...");
     let response = client
-        .post("http://127.0.0.1:8080/init_delegation_service")
+        .post("http://127.0.0.1:8080/add_delegation_signer")
         .body(receiver.to_bytes().to_vec())
         .send()
         .await?;
@@ -75,7 +75,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tokio::time::sleep(Duration::from_secs(2)).await;
 
     // Create test transactions
-    let amounts = vec![5, -3,];
+    let amounts = vec![5, -3, 9, -10, 1, -10, 4, -3, 9, -6];
     let mut txs = Vec::new();
     
     for amount in amounts {

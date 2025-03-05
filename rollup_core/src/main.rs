@@ -118,6 +118,18 @@ fn main() { // async
                         })
                     },
                 )
+                .route(
+                    "/add_delegation_signer",
+                    {
+                        let delegation_service = delegation_service.clone();
+                        web::post().to(move |body: web::Bytes| {
+                            let keypair = Keypair::from_bytes(&body).unwrap();
+                            delegation_service.write().unwrap().add_signer(keypair);
+                            log::info!("Added signer to delegation service");
+                            HttpResponse::Ok()
+                        })
+                    },
+                )
         
         })
         .worker_max_blocking_threads(2)

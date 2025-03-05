@@ -132,11 +132,11 @@ impl RollupDB {
                 }
                 let final_ixs = tx_bundler.generate_final();
 
-                // let pubkey_user = &final_ixs[0].accounts[0].pubkey;
-                // let del_service = delegation_service.read().unwrap();
-                // let user_keypair = del_service.get_keypair(pubkey_user).unwrap();
+                let pubkey_user = &final_ixs[0].accounts[0].pubkey;
+                let del_service = delegation_service.read().unwrap();
+                let user_keypair = del_service.get_keypair(pubkey_user).unwrap();
 
-                // settle_state(&final_ixs , user_keypair).await.unwrap();
+                settle_state(&final_ixs , user_keypair).await.unwrap();
 
                 log::info!("\nFinal Transfer Ixs:");
                 for ix in final_ixs{
