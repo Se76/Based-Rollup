@@ -1,6 +1,6 @@
 use async_channel::{Receiver, Sender};
+use log::log;
 use serde::{Deserialize, Serialize};
-use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     account::AccountSharedData, hash::Hash, pubkey::Pubkey, transaction::Transaction, // keccak::Hash -> hash::Hash
 };
@@ -18,10 +18,10 @@ use crate::bundler::*;
 pub struct RollupDBMessage {
     pub lock_accounts: Option<Vec<Pubkey>>,
     pub add_processed_transaction: Option<Transaction>,
-    pub add_new_data: Option<Vec<(Pubkey, AccountSharedData)>>,
     pub frontend_get_tx: Option<Hash>,
     pub add_settle_proof: Option<String>,
     pub get_account: Option<Pubkey>,
+    pub add_new_data: Option<Vec<(Pubkey, AccountSharedData)>>,
     // pub response: Option<bool>, 
       //Testing purposes
       pub bundle_tx: bool
@@ -50,7 +50,9 @@ impl RollupDB {
             transactions: HashMap::new(),
             pda_mappings: HashMap::new(),
         };
+
         while let Ok(message) = rollup_db_receiver.recv() {
+            log::info!("Received RollupDBMessage");
             log::info!("Received RollupDBMessage");
             if let Some(accounts_to_lock) = message.lock_accounts {
                 let mut information_to_send: Vec<(Pubkey, AccountSharedData)> = Vec::new();
@@ -89,6 +91,7 @@ impl RollupDB {
                 account_sender.send(Some(information_to_send)).await.unwrap();
                 // log::info!("2: {:#?}", db.locked_accounts);
             } else if let Some(get_this_hash_tx) = message.frontend_get_tx {
+                log::info!("Getting tx for frontend");
                 log::info!("Getting tx for frontend");
                 let req_tx = db.transactions.get(&get_this_hash_tx).unwrap();
 
@@ -163,7 +166,16 @@ impl RollupDB {
             //         account_sender.send(None).await.unwrap();
             //     }
             }
+
         }
+    }
+
+    pub fn register_pda(&mut self, user: Pubkey, pda: Pubkey) {
+        self.pda_mappings.insert(user, pda);
+    }
+
+    pub fn get_pda_for_user(&self, user: &Pubkey) -> Option<&Pubkey> {
+        self.pda_mappings.get(user)
     }
 
     pub fn register_pda(&mut self, user: Pubkey, pda: Pubkey) {

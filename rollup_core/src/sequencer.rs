@@ -114,6 +114,7 @@ pub async fn run( // async
                     add_processed_transaction: None,
                     get_account: Some(*pubkey),
                     bundle_tx: false
+                    bundle_tx: false
             })
             
             .map_err(|_| anyhow!("failed to send message to rollupdb"))?;
@@ -134,6 +135,7 @@ pub async fn run( // async
                 add_processed_transaction: None,
                 get_account: None,
                 // response: Some(true), 
+                bundle_tx: false
                 bundle_tx: false
             })
             
@@ -317,6 +319,7 @@ pub async fn run( // async
     Ok(())
 }
 
+            // Lock db to avoid state changes during settlement
             // Lock db to avoid state changes during settlement
 
             // Prepare root hash, or your own proof to send to chain

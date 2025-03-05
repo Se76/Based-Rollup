@@ -127,3 +127,19 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
     
     Ok(())
 }
+
+async fn gen_transfer_tx(path1: String, path2: String, amount: u64) -> Transaction {
+    println!("Amount: {amount}");
+    let keypair = signer::keypair::read_keypair_file(path1.to_string()).unwrap();
+    let keypair2 = signer::keypair::read_keypair_file(path2.to_string()).unwrap();
+    let rpc_client = RpcClient::new("https://api.devnet.solana.com".into());
+
+    let ix =
+        system_instruction::transfer(&keypair2.pubkey(), &keypair.pubkey(), amount * (LAMPORTS_PER_SOL / 10));
+    Transaction::new_signed_with_payer(
+        &[ix],
+        Some(&keypair2.pubkey()),
+        &[&keypair2],
+        rpc_client.get_latest_blockhash().await.unwrap(),
+    )
+}
