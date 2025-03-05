@@ -19,23 +19,23 @@ use solana_sdk::{
 };
 use solana_timings::ExecuteTimings;
 use solana_svm::{
-    message_processor::MessageProcessor, program_loader::load_program_with_pubkey, transaction_processing_callback::TransactionProcessingCallback, transaction_processing_result::ProcessedTransaction, transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment}
+   transaction_processing_callback::TransactionProcessingCallback, transaction_processing_result::ProcessedTransaction, transaction_processor::{TransactionBatchProcessor, TransactionProcessingConfig, TransactionProcessingEnvironment}
 };
 use tokio::time::{sleep, Duration};
-use crate::{rollupdb::RollupDBMessage, settle::settle_state};
+use crate::{delegation::find_delegation_pda, delegation_service::DelegationService, rollupdb::RollupDBMessage, settle::settle_state};
 use crate::loader::RollupAccountLoader;
 use crate::processor::*;
-use crate::errors::RollupErrors;
 use crate::bundler::*;
+use crate::errors::RollupErrors;
+
 
 pub async fn run( // async
     sequencer_receiver_channel: CBReceiver<Transaction>, // CBReceiver
     rollupdb_sender: CBSender<RollupDBMessage>, // CBSender
     account_reciever: Receiver<Option<Vec<(Pubkey, AccountSharedData)>>>,
     receiver_locked_accounts: Receiver<bool>,
-    // rx: tokio::sync::oneshot::Receiver<std::option::Option<bool>>  // sync_ver_sender
+    delegation_service: Arc<RwLock<DelegationService>>,
 ) -> Result<()> {
-    // let (tx, rx) = oneshot::channel(); // Create a channel to wait for response
 
     let mut tx_counter = 0u32;
 
@@ -44,7 +44,64 @@ pub async fn run( // async
     let mut rollup_account_loader = RollupAccountLoader::new(
         &rpc_client_temp,
     );
-    while let transaction = sequencer_receiver_channel.recv().unwrap() {
+    while let Ok(transaction) = sequencer_receiver_channel.recv() {
+        let sender = transaction.message.account_keys[0];
+        let amount = 1_000_000_000;
+
+        // Check delegation status first
+        let needs_delegation = {
+            let mut delegation_service = delegation_service.write().unwrap();
+            match delegation_service.get_or_fetch_pda(&sender)? {
+                Some((_, delegation)) => {
+                    // Log current and required amounts
+                    log::info!(
+                        "Checking delegation: current amount={}, required amount={}", 
+                        delegation.delegated_amount, 
+                        amount
+                    );
+                    delegation.delegated_amount < amount
+                }
+                None => {
+                    log::info!("No existing delegation found, creating new one with amount={}", amount);
+                    true
+                }
+            }
+        };
+
+        if needs_delegation {
+            // Create delegation transaction outside the lock
+            let delegation_tx = {
+                let mut delegation_service = delegation_service.write().unwrap();
+                match delegation_service.create_delegation_transaction(&sender, amount) {
+                    Ok(tx) => tx,
+                    Err(e) => {
+                        log::error!("Failed to create delegation transaction: {}", e);
+                        continue;
+                    }
+                }
+            };
+
+            // Submit and confirm delegation
+            match rpc_client_temp.send_and_confirm_transaction(&delegation_tx) {
+                Ok(sig) => {
+                    log::info!("Created delegation with signature: {}", sig);
+                    // Wait for confirmation
+                    tokio::time::sleep(Duration::from_secs(2)).await;
+                    
+                    // Update cache after successful delegation
+                    let (pda, _) = find_delegation_pda(&sender);
+                    if let Ok(account) = rpc_client_temp.get_account(&pda) {
+                        delegation_service.write().unwrap()
+                            .update_pda_state(pda, account.into());
+                    }
+                }
+                Err(e) => {
+                    log::error!("Failed to create delegation: {}", e);
+                    continue; // Skip processing this transaction
+                }
+            }
+        }
+
         let accounts_to_lock = transaction.message.account_keys.clone();
         for pubkey in accounts_to_lock.iter() {
             loop {
@@ -131,11 +188,13 @@ pub async fn run( // async
 
         let processing_environment = TransactionProcessingEnvironment {
             blockhash: Hash::default(),
-            epoch_total_stake: None,
-            epoch_vote_accounts: None,
+            epoch_total_stake: 0u64,
+            //epoch_vote_accounts: None,
             feature_set: Arc::new(feature_set),
-            fee_structure: Some(&fee_structure),
-            lamports_per_signature: fee_structure.lamports_per_signature,
+            //fee_structure: Some(&fee_structure),
+            //lamports_per_signature: fee_structure.lamports_per_signature,
+            blockhash_lamports_per_signature: fee_structure.lamports_per_signature,
+            fee_lamports_per_signature: fee_structure.lamports_per_signature,
             rent_collector: Some(&rent_collector),
         };
 
@@ -191,7 +250,7 @@ pub async fn run( // async
             
             .unwrap();
 
-        //View sent processed tx details
+                    //View sent processed tx details
         let ixs = get_transaction_instructions(&transaction);
         let acc_keys: &[Pubkey] = &transaction.message.account_keys;
         if let Some((from, to, amount)) = TransferBundler::parse_compiled_instruction(&ixs[0], acc_keys) {
@@ -204,10 +263,10 @@ pub async fn run( // async
                 ")
             }
 
+
+
         // Call settle if transaction amount since last settle hits 10
         if tx_counter >= 10 {
-            log::info!("Start bundling!");
-            //bundle transfer tx test
             rollupdb_sender.send(RollupDBMessage {
                 lock_accounts: None,
                 add_processed_transaction: None,
@@ -217,6 +276,42 @@ pub async fn run( // async
                 frontend_get_tx: None,
                 bundle_tx: true
             }).unwrap();
+
+
+
+            log::info!("Start bundling!");
+            
+            // Get the current user's delegation and withdraw funds
+            let (pda, delegation) = {
+                let mut delegation_service = delegation_service.write().unwrap();
+                if let Some(delegation_info) = delegation_service.get_or_fetch_pda(&sender)? {
+                    delegation_info
+                } else {
+                    log::error!("No delegation found for {} during withdrawal", sender);
+                    return Ok(());
+                }
+            };
+
+            // Create and send withdrawal transaction
+            let withdrawal_tx = {
+                let mut delegation_service = delegation_service.write().unwrap();
+                delegation_service.create_withdrawal_transaction(&pda, &sender, delegation.delegated_amount)?
+            };
+
+            // Submit withdrawal transaction synchronously
+            match rpc_client_temp.send_and_confirm_transaction(&withdrawal_tx) {
+                Ok(sig) => {
+                    log::info!("Withdrew {} lamports from delegation {}, signature: {}", 
+                        delegation.delegated_amount, pda, sig);
+                },
+                Err(e) => {
+                    log::error!("Failed to withdraw from delegation {}: {}", pda, e);
+                }
+            }
+
+            // Reset counter after processing
+            tx_counter = 0;
+
         }
     }
     Ok(())

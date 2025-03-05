@@ -1,6 +1,6 @@
 use async_channel::{Receiver, Sender};
-use log::log;
 use serde::{Deserialize, Serialize};
+use solana_client::rpc_client::RpcClient;
 use solana_sdk::{
     account::AccountSharedData, hash::Hash, pubkey::Pubkey, transaction::Transaction, // keccak::Hash -> hash::Hash
 };
@@ -8,25 +8,23 @@ use solana_sdk::{
 use crossbeam::channel::{Receiver as CBReceiver, Sender as CBSender};
 use std::{
     collections::{HashMap, HashSet},
-    default,
+    default, sync::{Arc, RwLock},
 };
-use solana_client::rpc_client::{RpcClient};
-
-
-use crate::frontend::FrontendMessage;
+use tokio::sync::oneshot;
+use crate::{delegation_service::DelegationService, frontend::FrontendMessage, settle::settle_state};
 use crate::bundler::*;
 
 #[derive(Serialize, Deserialize)]
 pub struct RollupDBMessage {
     pub lock_accounts: Option<Vec<Pubkey>>,
     pub add_processed_transaction: Option<Transaction>,
+    pub add_new_data: Option<Vec<(Pubkey, AccountSharedData)>>,
     pub frontend_get_tx: Option<Hash>,
     pub add_settle_proof: Option<String>,
     pub get_account: Option<Pubkey>,
-    pub add_new_data: Option<Vec<(Pubkey, AccountSharedData)>>,
     // pub response: Option<bool>, 
-    //Testing purposes
-    pub bundle_tx: bool
+      //Testing purposes
+      pub bundle_tx: bool
 }
 
 #[derive(Serialize, Debug, Default)]
@@ -34,6 +32,8 @@ pub struct RollupDB {
     accounts_db: HashMap<Pubkey, AccountSharedData>,
     locked_accounts: HashMap<Pubkey, AccountSharedData>,
     transactions: HashMap<Hash, Transaction>,
+    pda_mappings: HashMap<Pubkey, Pubkey>,  // user -> pda mapping
+    // async_ver_recv: Receiver<Option<bool>>
 }
 
 impl RollupDB {
@@ -42,13 +42,14 @@ impl RollupDB {
         frontend_sender: Sender<FrontendMessage>,
         account_sender: Sender<Option<Vec<(Pubkey, AccountSharedData)>>>,
         sender_locked_accounts: Sender<bool>,
+        delegation_service: Arc<RwLock<DelegationService>>,
     ) {
         let mut db = RollupDB {
             accounts_db: HashMap::new(),
             locked_accounts: HashMap::new(),
             transactions: HashMap::new(),
+            pda_mappings: HashMap::new(),
         };
-
         while let Ok(message) = rollup_db_receiver.recv() {
             log::info!("Received RollupDBMessage");
             if let Some(accounts_to_lock) = message.lock_accounts {
@@ -122,13 +123,21 @@ impl RollupDB {
 
                 // communication channel with database 
                 // communcation with the frontend 
-            } else if message.bundle_tx {
+            }
+            else if message.bundle_tx {
                 log::info!("BUNDLING TX");
                 let mut tx_bundler = TransferBundler::new();
                 for (_, tx) in db.transactions.clone() {
                     tx_bundler.bundle(tx);
                 }
                 let final_ixs = tx_bundler.generate_final();
+
+                let pubkey_user = &final_ixs[0].accounts[0].pubkey;
+                let del_service = delegation_service.read().unwrap();
+                let user_keypair = del_service.get_keypair(pubkey_user).unwrap();
+
+                settle_state(&final_ixs , user_keypair).await.unwrap();
+
                 log::info!("\nFinal Transfer Ixs:");
                 for ix in final_ixs{
                     if let Some((from, to, amount)) = TransferBundler::parse_instruction(&ix){
@@ -136,6 +145,8 @@ impl RollupDB {
                 }
                 log::info!("BUNDLING DONE");
                 db.transactions.clear();
+
+
             }
             else if let Some(pubkey) = message.get_account {
                 if db.locked_accounts.contains_key(&pubkey) {
@@ -152,8 +163,15 @@ impl RollupDB {
             //         account_sender.send(None).await.unwrap();
             //     }
             }
-
         }
+    }
+
+    pub fn register_pda(&mut self, user: Pubkey, pda: Pubkey) {
+        self.pda_mappings.insert(user, pda);
+    }
+
+    pub fn get_pda_for_user(&self, user: &Pubkey) -> Option<&Pubkey> {
+        self.pda_mappings.get(user)
     }
 }
 

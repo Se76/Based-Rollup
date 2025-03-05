@@ -12,6 +12,7 @@ use {
     },
     solana_system_program::system_processor,
     std::sync::{Arc, RwLock},
+    std::collections::HashSet,
 };
 
 /// In order to use the `TransactionBatchProcessor`, another trait - Solana
@@ -37,60 +38,31 @@ pub(crate) fn create_transaction_batch_processor<CB: TransactionProcessingCallba
     feature_set: &FeatureSet,
     compute_budget: &ComputeBudget,
     fork_graph: Arc<RwLock<RollupForkGraph>>,
-    // needed_programs: Vec<Pubkey>,
 ) -> TransactionBatchProcessor<RollupForkGraph> {
-    // Create a new transaction batch processor.
-    //
-    // We're going to use slot 1 specifically because any programs we add will
-    // be deployed in slot 0, and they are delayed visibility until the next
-    // slot (1).
-    // This includes programs owned by BPF Loader v2, which are automatically
-    // marked as "depoyed" in slot 0.
-    // See `solana_svm::program_loader::program_with_pubkey` for more
-    // details.
-    let processor = TransactionBatchProcessor::<RollupForkGraph>::new_uninitialized(
+    let processor = TransactionBatchProcessor::<RollupForkGraph>::new(
         /* slot */ 1,
-        /* epoch */ 1,
-        // Arc::downgrade(&fork_graph),
-        // Some(Arc::new(
-        //     create_program_runtime_environment_v1(feature_set, compute_budget, false, false)
-        //         .unwrap(),
-        // )),
-        // None,
+        /* epoch */ 1, 
+        Arc::downgrade(&fork_graph),
+        Some(Arc::new(
+            create_program_runtime_environment_v1(feature_set, compute_budget, false, false)
+                .unwrap(),
+        )),
+        None,
     );
 
     processor.program_cache.write().unwrap().set_fork_graph(Arc::downgrade(&fork_graph));
 
-    processor.prepare_program_cache_for_upcoming_feature_set(callbacks, feature_set, compute_budget, 1, 50);
+    processor.prepare_program_cache_for_upcoming_feature_set(
+        callbacks, feature_set, compute_budget, 1, 50
+    );
 
-    // processor.prepare_program_cache_for_upcoming_feature_set(callbacks, upcoming_feature_set, compute_budget, slot_index, slots_in_epoch);
-
-    // Add the system program builtin.
+    // Add system program
     processor.add_builtin(
         callbacks,
         solana_system_program::id(),
-        "system_program",
-        ProgramCacheEntry::new_builtin(
-            0,
-            b"system_program".len(),
-            system_processor::Entrypoint::vm,
-        ),
+        "system_program", 
+        ProgramCacheEntry::new_builtin(0, b"system_program".len(), system_processor::Entrypoint::vm),
     );
-
-    // Add the BPF Loader v2 builtin, for the SPL Token program.
-    processor.add_builtin(
-        callbacks,
-        solana_sdk::bpf_loader::id(),
-        "solana_bpf_loader_program",
-        ProgramCacheEntry::new_builtin(
-            0,
-            b"solana_bpf_loader_program".len(),
-            solana_bpf_loader_program::Entrypoint::vm,
-        ),
-    );
-
-    // Adding any needed programs to the processor.
-
 
     processor
 }
@@ -103,10 +75,10 @@ pub(crate) fn get_transaction_check_results(
     lamports_per_signature: u64,
 ) -> Vec<transaction::Result<CheckedTransactionDetails>> {
     vec![
-        transaction::Result::Ok(CheckedTransactionDetails {
-            nonce: None,
-            lamports_per_signature,
-        });
+        transaction::Result::Ok(CheckedTransactionDetails::new(
+            None,
+            lamports_per_signature
+        ));
         len
     ]
 }
