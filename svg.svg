@@ -1,0 +1,228 @@
+<svg width="2855.843017578125" height="1604.3179931640625" xmlns="http://www.w3.org/2000/svg" role="graphics-document document" aria-roledescription="sequence">
+
+
+
+ <defs>
+  <marker id="arrowhead" refX="7.9" refY="5" markerUnits="userSpaceOnUse" markerWidth="12" markerHeight="12" orient="auto-start-reverse">
+   <path id="svg_4" stroke="lightgrey" fill="lightgrey" d="m-1,0l11,5l-10,5l-1,-10z"/>
+  </marker>
+ </defs>
+
+
+
+ <g>
+  <title>Layer 1</title>
+  <g transform="matrix(1.01316 0 0 0.996132 -40.609 8.73845)" class="svg-pan-zoom_viewport" id="viewport-20250304205848460">
+   <g id="svg_8">
+    <rect id="svg_9" x="2631" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Delegation" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_10" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="2706" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_11" fill="lightgrey" x="2706" dy="0">Delegation</tspan>
+    </text>
+   </g>
+   <g id="svg_12">
+    <rect id="svg_13" x="2431" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Settler" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_14" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="2506" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_15" fill="lightgrey" x="2506" dy="0">Settler</tspan>
+    </text>
+   </g>
+   <g id="svg_16">
+    <rect id="svg_17" x="2066" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Bundler" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_18" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="2141" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_19" fill="lightgrey" x="2141" dy="0">Bundler</tspan>
+    </text>
+   </g>
+   <g id="svg_20">
+    <rect id="svg_21" x="1833" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Processor" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_22" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="1908" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_23" fill="lightgrey" x="1908" dy="0">Processor</tspan>
+    </text>
+   </g>
+   <g id="svg_24">
+    <rect id="svg_25" x="1633" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Callbacks" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_26" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="1708" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_27" fill="lightgrey" x="1708" dy="0">Callbacks</tspan>
+    </text>
+   </g>
+   <g id="svg_28">
+    <rect id="svg_29" x="1433" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="RollupDB" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_30" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="1508" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_31" fill="lightgrey" x="1508" dy="0">RollupDB</tspan>
+    </text>
+   </g>
+   <g id="svg_32">
+    <rect id="svg_33" x="904" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Sequencer" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_34" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="979" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_35" fill="lightgrey" x="979" dy="0">Sequencer</tspan>
+    </text>
+   </g>
+   <g id="svg_36">
+    <rect id="svg_37" x="486" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Delegation Service" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_38" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="561" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_39" fill="lightgrey" x="561" dy="0">Delegation Service</tspan>
+    </text>
+   </g>
+   <g id="svg_40">
+    <rect id="svg_41" x="202" y="1525" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Server" rx="3" ry="3" class="actor actor-bottom"/>
+    <text id="svg_42" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="277" y="1557.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+     <tspan id="svg_43" fill="lightgrey" x="277" dy="0">Server</tspan>
+    </text>
+   </g>
+   <g id="svg_44"/>
+   <g id="svg_45">
+    <line fill="#1f2020" id="actor8517" x1="2706" y1="65" x2="2706" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Delegation"/>
+    <g id="root-8517">
+     <rect id="svg_46" x="2631" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Delegation" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_47" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="2706" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_48" fill="lightgrey" x="2706" dy="0">Delegation</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_49">
+    <line fill="#1f2020" id="actor8516" x1="2506" y1="65" x2="2506" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Settler"/>
+    <g id="root-8516">
+     <rect id="svg_50" x="2431" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Settler" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_51" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="2506" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_52" fill="lightgrey" x="2506" dy="0">Settler</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_53">
+    <line fill="#1f2020" id="actor8515" x1="2141" y1="65" x2="2141" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Bundler"/>
+    <g id="root-8515">
+     <rect id="svg_54" x="2066" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Bundler" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_55" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="2141" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_56" fill="lightgrey" x="2141" dy="0">Bundler</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_57">
+    <line fill="#1f2020" id="actor8514" x1="1908" y1="65" x2="1908" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Processor"/>
+    <g id="root-8514">
+     <rect id="svg_58" x="1833" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Processor" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_59" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="1908" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_60" fill="lightgrey" x="1908" dy="0">Processor</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_61">
+    <line fill="#1f2020" id="actor8513" x1="1708" y1="65" x2="1708" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Callbacks"/>
+    <g id="root-8513">
+     <rect id="svg_62" x="1633" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Callbacks" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_63" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="1708" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_64" fill="lightgrey" x="1708" dy="0">Callbacks</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_65">
+    <line fill="#1f2020" id="actor8512" x1="1508" y1="65" x2="1508" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="RollupDB"/>
+    <g id="root-8512">
+     <rect id="svg_66" x="1433" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="RollupDB" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_67" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="1508" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_68" fill="lightgrey" x="1508" dy="0">RollupDB</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_69">
+    <line fill="#1f2020" id="actor8511" x1="979" y1="65" x2="979" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Sequencer"/>
+    <g id="root-8511">
+     <rect id="svg_70" x="904" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Sequencer" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_71" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="979" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_72" fill="lightgrey" x="979" dy="0">Sequencer</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_73">
+    <line fill="#1f2020" id="actor8510" x1="561" y1="65" x2="561" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Delegation Service"/>
+    <g id="root-8510">
+     <rect id="svg_74" x="486" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Delegation Service" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_75" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="561" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_76" fill="lightgrey" x="561" dy="0">Delegation Service</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_77">
+    <line fill="#1f2020" id="actor8509" x1="277" y1="65" x2="277" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Server"/>
+    <g id="root-8509">
+     <rect id="svg_78" x="202" y="0" fill="#1f2020" stroke="#ccc" width="150" height="65" name="Server" rx="3" ry="3" class="actor actor-top"/>
+     <text id="svg_79" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="277" y="32.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-box">
+      <tspan id="svg_80" fill="lightgrey" x="277" dy="0">Server</tspan>
+     </text>
+    </g>
+   </g>
+   <g id="svg_81">
+    <line fill="#1f2020" id="actor8508" x1="75" y1="80" x2="75" y2="1525" class="actor-line 200" stroke-width="2px" stroke="#ccc" name="Jeff"/>
+   </g>
+   <g id="svg_82"/>
+   <g id="svg_83" class="actor-man actor-top" name="Jeff">
+    <line stroke-width="2px" fill="#1f2020" stroke="#ccc" id="actor-man-torso8508" x1="75" y1="25" x2="75" y2="45"/>
+    <line stroke-width="2px" fill="#1f2020" stroke="#ccc" id="actor-man-arms8508" x1="57" y1="33" x2="93" y2="33"/>
+    <line id="svg_84" stroke-width="2px" fill="#1f2020" stroke="#ccc" x1="57" y1="60" x2="75" y2="45"/>
+    <line id="svg_85" stroke-width="2px" fill="#1f2020" stroke="#ccc" x1="75" y1="45" x2="91" y2="60"/>
+    <circle id="svg_86" stroke-width="2px" fill="#1f2020" stroke="#ccc" cx="75" cy="10" r="15" width="150" height="65"/>
+    <text id="svg_87" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="75" y="67.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-man">
+     <tspan id="svg_88" fill="lightgrey" x="75" dy="0">Jeff</tspan>
+    </text>
+   </g>
+   <text id="svg_89" fill="lightgrey" font-weight="400" font-size=" 16px" x="175" y="80" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Sends transactions</text>
+   <line id="svg_90" fill="#1f2020" x1="76" y1="113" x2="273" y2="113" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_91" fill="lightgrey" font-weight="400" font-size=" 16px" x="418" y="128" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Initializes PDA for storing funds</text>
+   <line id="svg_92" fill="#1f2020" x1="278" y1="161" x2="557" y2="161" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_93" fill="lightgrey" font-weight="400" font-size=" 16px" x="627" y="176" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Sends transaction for processing</text>
+   <line id="svg_94" fill="#1f2020" x1="278" y1="209" x2="975" y2="209" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_95" fill="lightgrey" font-weight="400" font-size=" 16px" x="980" y="224" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">decides whether a delegation is needed</text>
+   <path id="svg_96" fill=" none" d="m980,257c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <text id="svg_97" fill="lightgrey" font-weight="400" font-size=" 16px" x="772" y="302" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">yes: transafers funds to from Jeff's account to PDA</text>
+   <line id="svg_98" fill="#1f2020" stroke-dasharray="2,2" x1="978" y1="335" x2="565" y2="335" class="messageLine1" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_99" fill="lightgrey" font-weight="400" font-size=" 16px" x="769" y="350" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Sends Result of Operation</text>
+   <line id="svg_100" fill="#1f2020" stroke-dasharray="2,2" x1="562" y1="383" x2="975" y2="383" class="messageLine1" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_101" fill="lightgrey" font-weight="400" font-size=" 16px" x="1242" y="398" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Sends accounts to locks</text>
+   <line id="svg_102" fill="#1f2020" x1="980" y1="431" x2="1504" y2="431" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_103" fill="lightgrey" font-weight="400" font-size=" 16px" x="1509" y="446" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Adds and locks/just locks accounts</text>
+   <path id="svg_104" fill=" none" d="m1509,479c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <text id="svg_105" fill="lightgrey" font-weight="400" font-size=" 16px" x="1245" y="524" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Sends Data about needed accounts</text>
+   <line id="svg_106" fill="#1f2020" x1="1507" y1="557" x2="983" y2="557" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_107" fill="lightgrey" font-weight="400" font-size=" 16px" x="1342" y="572" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Adds infromation to the callbacks</text>
+   <line id="svg_108" fill="#1f2020" x1="980" y1="605" x2="1704" y2="605" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_109" fill="lightgrey" font-weight="400" font-size=" 16px" x="1442" y="620" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Creates TransactionBatchProcessor</text>
+   <line id="svg_110" fill="#1f2020" x1="980" y1="653" x2="1904" y2="653" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_111" fill="lightgrey" font-weight="400" font-size=" 16px" x="1909" y="668" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Adds needed programs to the runtime_enviroment</text>
+   <path id="svg_112" fill=" none" d="m1909,701c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <text id="svg_113" fill="lightgrey" font-weight="400" font-size=" 16px" x="1445" y="746" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Returns TransactionBtachProcessor</text>
+   <line id="svg_114" fill="#1f2020" x1="1907" y1="779" x2="983" y2="779" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_115" fill="lightgrey" font-weight="400" font-size=" 16px" x="980" y="794" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Сonfigures TBP</text>
+   <path id="svg_116" fill=" none" d="m980,827c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <text id="svg_117" fill="lightgrey" font-weight="400" font-size=" 16px" x="980" y="872" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Sanitizes Transactions</text>
+   <path id="svg_118" fill=" none" d="m980,905c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <text id="svg_119" fill="lightgrey" font-weight="400" font-size=" 16px" x="980" y="950" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Processes Transactions using SVM Api</text>
+   <path id="svg_120" fill=" none" d="m980,983c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <text id="svg_121" fill="lightgrey" font-weight="400" font-size=" 16px" x="1242" y="1028" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Unlocks accounts that were used</text>
+   <line id="svg_122" fill="#1f2020" x1="980" y1="1061" x2="1504" y2="1061" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_123" fill="lightgrey" font-weight="400" font-size=" 16px" x="1242" y="1076" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Adds transaction to the DB</text>
+   <line id="svg_124" fill="#1f2020" x1="980" y1="1109" x2="1504" y2="1109" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_125" fill="lightgrey" font-weight="400" font-size=" 16px" x="1242" y="1124" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">If ten transactions were processed -&gt; Sends message to bundle ixs</text>
+   <line id="svg_126" fill="#1f2020" stroke-dasharray="2,2" x1="980" y1="1157" x2="1504" y2="1157" class="messageLine1" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_127" fill="lightgrey" font-weight="400" font-size=" 16px" x="1823" y="1172" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Bundles Instructions</text>
+   <line id="svg_128" fill="#1f2020" x1="1509" y1="1205" x2="2137" y2="1205" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_129" fill="lightgrey" font-weight="400" font-size=" 16px" x="2322" y="1220" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Initializes new Transaction with bundled ixs</text>
+   <line id="svg_130" fill="#1f2020" x1="2142" y1="1253" x2="2502" y2="1253" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_131" fill="lightgrey" font-weight="400" font-size=" 16px" x="2507" y="1268" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Settles final tx to the chain</text>
+   <path id="svg_132" fill=" none" d="m2507,1301c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <text id="svg_133" fill="lightgrey" font-weight="400" font-size=" 16px" x="1744" y="1346" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Sends Result</text>
+   <line id="svg_134" fill="#1f2020" x1="2505" y1="1379" x2="983" y2="1379" class="messageLine0" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_135" fill="lightgrey" font-weight="400" font-size=" 16px" x="1841" y="1394" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Withdraws funds if needed</text>
+   <line id="svg_136" fill="#1f2020" stroke-dasharray="2,2" x1="980" y1="1427" x2="2702" y2="1427" class="messageLine1" stroke-width="2px" stroke="#ccc" marker-end="url(#arrowhead)"/>
+   <text id="svg_137" fill="lightgrey" font-weight="400" font-size=" 16px" x="2707" y="1442" text-anchor="middle" dominant-baseline="middle" alignment-baseline="middle" class="messageText" dy="1em">Closes PDA and sends funds to the issuer</text>
+   <path id="svg_138" fill=" none" d="m2707,1475c60,-10 60,30 0,20" class="messageLine0" stroke-width="1.5" stroke="lightgrey" marker-end="url(#arrowhead)"/>
+   <g id="svg_139" class="actor-man actor-bottom" name="Jeff">
+    <line stroke-width="2px" fill="#1f2020" stroke="#ccc" id="actor-man-torso8517" x1="75" y1="1550" x2="75" y2="1570"/>
+    <line stroke-width="2px" fill="#1f2020" stroke="#ccc" id="actor-man-arms8517" x1="57" y1="1558" x2="93" y2="1558"/>
+    <line id="svg_140" stroke-width="2px" fill="#1f2020" stroke="#ccc" x1="57" y1="1585" x2="75" y2="1570"/>
+    <line id="svg_141" stroke-width="2px" fill="#1f2020" stroke="#ccc" x1="75" y1="1570" x2="91" y2="1585"/>
+    <circle id="svg_142" stroke-width="2px" fill="#1f2020" stroke="#ccc" cx="75" cy="1535" r="15" width="150" height="65"/>
+    <text id="svg_143" fill="#1f2020" stroke="#ccc" font-weight="400" font-size=" 16px" text-anchor=" middle" x="75" y="1592.5" dominant-baseline="central" alignment-baseline="central" class="actor actor-man">
+     <tspan id="svg_144" fill="lightgrey" x="75" dy="0">Jeff</tspan>
+    </text>
+   </g>
+  </g>
+ </g>
+</svg>
